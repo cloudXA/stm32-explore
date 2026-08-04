@@ -1,0 +1,24 @@
+--cpu Cortex-M3
+"exit_test\startup_stm32f103xb.o"
+"exit_test\main.o"
+"exit_test\gpio.o"
+"exit_test\stm32f1xx_it.o"
+"exit_test\stm32f1xx_hal_msp.o"
+"exit_test\stm32f1xx_hal_gpio_ex.o"
+"exit_test\stm32f1xx_hal_tim.o"
+"exit_test\stm32f1xx_hal_tim_ex.o"
+"exit_test\stm32f1xx_hal.o"
+"exit_test\stm32f1xx_hal_rcc.o"
+"exit_test\stm32f1xx_hal_rcc_ex.o"
+"exit_test\stm32f1xx_hal_gpio.o"
+"exit_test\stm32f1xx_hal_dma.o"
+"exit_test\stm32f1xx_hal_cortex.o"
+"exit_test\stm32f1xx_hal_pwr.o"
+"exit_test\stm32f1xx_hal_flash.o"
+"exit_test\stm32f1xx_hal_flash_ex.o"
+"exit_test\stm32f1xx_hal_exti.o"
+"exit_test\system_stm32f1xx.o"
+--strict --scatter "exit_test\exit_test.sct"
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list "exit_test.map" -o exit_test\exit_test.axf

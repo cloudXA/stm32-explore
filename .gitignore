@@ -1,0 +1,31 @@
+# STM32 build artifacts
+*.o
+*.d
+*.elf
+*.hex
+*.bin
+*.map
+*.lst
+
+# Compiled libraries
+*.a
+*.lib
+
+# Debug
+*.crf
+*.dep
+*.ewd
+*.ewp
+*.ewt
+*.eww
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
