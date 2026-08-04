@@ -24,7 +24,6 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <string.h>
-#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -55,12 +54,6 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-int fputc(int ch, FILE *f)
-{
-  unsigned char temp[1] = {ch};
-  HAL_UART_Transmit(&huart1, temp, 1, 0xFFFF);
-  return ch;
-}
 /* USER CODE END 0 */
 
 /**
@@ -70,7 +63,7 @@ int fputc(int ch, FILE *f)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+  unsigned char ch[64] = {0};
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -94,7 +87,8 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
-  printf("hello world\r\n");
+  // printf("hello world\r\n");
+  HAL_UART_Transmit(&huart1, (uint8_t *)"hello world\n", strlen("hello world\n"), 0xFFFF);
 
   /* USER CODE END 2 */
 
@@ -105,9 +99,10 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    char ch[64] = {0};
+    // char ch[64] = {0};
     HAL_UART_Receive(&huart1, (uint8_t *)ch, sizeof(ch) - 1, 100);
-    printf(ch);
+    HAL_UART_Transmit(&huart1, (uint8_t *)ch, strlen(ch), 100);
+    // // printf(ch);
     memset(ch, 0, sizeof(ch));
   }
   /* USER CODE END 3 */
