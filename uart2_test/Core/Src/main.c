@@ -23,7 +23,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -33,6 +33,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define UART_RX_BUF_LEN 64
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -43,7 +44,8 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+uint8_t   UART_RX_BUF[UART_RX_BUF_LEN]; /* 接收缓冲区 */
+volatile uint16_t UART_RX_STA = 0;                 /* 接收状态: bit15=完成, bit14-0=已收字节数 */
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -87,8 +89,12 @@ int main(void)
   MX_GPIO_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+  HAL_UART_Transmit(&huart1, (uint8_t *)"STM32 UART1 Ready\r\n",
+                    strlen("STM32 UART2 Ready\r\n"), 0xFFFF);
 
-  /* USER CODE END 2 */
+  /* 开启中断接收，每次收 1 字节，收到后触发 HAL_UART_RxCpltCallback */
+  HAL_UART_Receive_IT(&huart1, &UART_RX_BUF[0], 1);
+  /* USER CODE END 2 */ 
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
@@ -97,6 +103,24 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    /* 轮询判断接收是否完成（bit15 == 1） */
+    if (UART_RX_STA & 0x8000)
+    {
+      uint16_t len = UART_RX_STA & 0x3FFF;    /* 实际收到的字节数 */
+
+      /* 等待上次发送完成（gState == HAL_UART_STATE_READY） */
+      while (huart1.gState != HAL_UART_STATE_READY);
+
+      /* 把收到的数据回显到串口 */
+      HAL_UART_Transmit(&huart1, UART_RX_BUF, len, 0xFFFF);
+
+      /* 清除接收状态，准备下一次接收 */
+      memset(UART_RX_BUF, 0, UART_RX_BUF_LEN);
+      UART_RX_STA = 0;
+
+      /* 重新开启中断接收 */
+      HAL_UART_Receive_IT(&huart1, &UART_RX_BUF[0], 1);
+    }
   }
   /* USER CODE END 3 */
 }
@@ -141,6 +165,34 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+/* 串口接收完成中断回调 */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  if (huart->Instance == USART1)
+  {
+    uint16_t idx = UART_RX_STA & 0x3FFF;           /* 当前已存位置 */
+
+    /* 收到换行符 \n，标记接收完成 */
+    if (UART_RX_BUF[idx] == '\n')
+    {
+      UART_RX_STA |= 0x8000;                        /* bit15 置 1，通知 main 循环 */
+      return;
+    }
+
+    /* 不是换行符：检查是否越界 */
+    idx++;
+    if (idx >= UART_RX_BUF_LEN - 1)
+    {
+      UART_RX_STA |= 0x8000;                        /* 越界也标记完成，防止溢出 */
+      return;
+    }
+
+    /* 正常接收：更新索引，继续收下一个字节 */
+    UART_RX_STA = idx;
+    HAL_UART_Receive_IT(&huart1, &UART_RX_BUF[idx], 1);
+  }
+}
 
 /* USER CODE END 4 */
 
