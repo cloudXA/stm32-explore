@@ -93,8 +93,7 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
-  // printf("hello world\r\n");
-  HAL_UART_Transmit(&huart1, (uint8_t *)"hello world\n", strlen("hello world\n"), 0xFFFF);
+  printf("STM32 Ready! Send 'open' or 'close'\r\n");
 
   /* USER CODE END 2 */
 
@@ -105,11 +104,31 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    // char ch[64] = {0};
-    HAL_UART_Receive(&huart1, (uint8_t *)ch, sizeof(ch) - 1, 100);
-    // HAL_UART_Transmit(&huart1, (uint8_t *)ch, strlen(ch), 100);
-    printf("%s", ch);
+    /* 逐个字节接收，遇到 \n 就停 */
+    uint8_t byte;
+    uint16_t idx = 0;
     memset(ch, 0, sizeof(ch));
+
+    do {
+      HAL_UART_Receive(&huart1, &byte, 1, HAL_MAX_DELAY);   /* 收 1 个字节 */
+      if (byte != '\r' && byte != '\n' && idx < sizeof(ch) - 1)
+      {
+        ch[idx++] = byte;                                   /* 普通字符存起来 */
+      }
+    } while (byte != '\n' && idx < sizeof(ch) - 1);         /* 收到 \n 就停 */
+
+    printf("[RX]: %s\r\n", ch);
+
+    if (strcmp(ch, "open") == 0)
+    {
+      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);  /* PB9 低电平 → LED 亮 */
+      printf("LED ON\r\n");
+    }
+    else if (strcmp(ch, "close") == 0)
+    {
+      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);    /* PB9 高电平 → LED 灭 */
+      printf("LED OFF\r\n");
+    }
   }
   /* USER CODE END 3 */
 }
