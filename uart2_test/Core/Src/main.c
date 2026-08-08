@@ -45,7 +45,7 @@
 
 /* USER CODE BEGIN PV */
 uint8_t   UART_RX_BUF[UART_RX_BUF_LEN]; /* 接收缓冲区 */
-volatile uint16_t UART_RX_STA = 0;      /* bit15=完成, bit14-0=已收字节数 */
+volatile uint16_t UART_RX_STA = 0;      /* bit15=完�?, bit14-0=已收字节数 */
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -92,7 +92,7 @@ int main(void)
   HAL_UART_Transmit(&huart1, (uint8_t *)"STM32 UART2 Ready\r\n",
                     strlen("STM32 UART2 Ready\r\n"), 0xFFFF);
 
-  /* 开启中断接收，每次收 1 字节，收到后触发 HAL_UART_RxCpltCallback */
+  /* 开�?�中断接收，�?次收 1 字节，收到�?�触�?� HAL_UART_RxCpltCallback */
   HAL_UART_Receive_IT(&huart1, &UART_RX_BUF[0], 1);
   /* USER CODE END 2 */
 
@@ -176,24 +176,24 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
-/* 串口接收完成中断回调 */
+/* 串�?�接收完�?中断回调 */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
   if (huart->Instance == USART1)
   {
     uint16_t idx = UART_RX_STA & 0x3FFF;
 
-    /* \r 或 \n → 命令结束 */
+    /* \r 或 \n → 命令结�?� */
     if ((UART_RX_BUF[idx] == '\r') || (UART_RX_BUF[idx] == '\n'))
     {
       if (idx > 0)
       {
-        /* 交给主循环处理；处理完成前不要覆盖接收缓冲区。 */
+        /* 交给主循环处�?�；处�?�完�?�?�?�?覆盖接收缓冲区。 */
         UART_RX_STA = idx | 0x8000;
       }
       else
       {
-        /* 忽略空行，以及 CRLF 中剩余的 LF。 */
+        /* 忽略空行，以�?� CRLF 中剩余的 LF。 */
         UART_RX_STA = 0;
         HAL_UART_Receive_IT(&huart1, &UART_RX_BUF[0], 1);
       }
@@ -201,6 +201,18 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     }
 
     idx++;
+
+    /*
+     * 手机 BLE 工具通常不会把输入框中的 "\\n" 转成真正的换行符。
+     * 本实验只有两个固定命令，因此收到完整命令后直接交给主循环处理。
+     */
+    if (((idx == 4U) && (memcmp(UART_RX_BUF, "open", 4U) == 0)) ||
+        ((idx == 5U) && (memcmp(UART_RX_BUF, "close", 5U) == 0)))
+    {
+      UART_RX_STA = idx | 0x8000;
+      return;
+    }
+
     if (idx >= UART_RX_BUF_LEN - 1)
     {
       UART_RX_STA |= 0x8000;
