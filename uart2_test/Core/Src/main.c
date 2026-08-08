@@ -45,7 +45,7 @@
 
 /* USER CODE BEGIN PV */
 uint8_t   UART_RX_BUF[UART_RX_BUF_LEN]; /* 接收缓冲区 */
-volatile uint16_t UART_RX_STA = 0;                 /* 接收状态: bit15=完成, bit14-0=已收字节数 */
+volatile uint16_t UART_RX_STA = 0;      /* bit15=完成, bit14-0=已收字节数 */
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -89,12 +89,12 @@ int main(void)
   MX_GPIO_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-  HAL_UART_Transmit(&huart1, (uint8_t *)"STM32 UART1 Ready\r\n",
+  HAL_UART_Transmit(&huart1, (uint8_t *)"STM32 UART2 Ready\r\n",
                     strlen("STM32 UART2 Ready\r\n"), 0xFFFF);
 
   /* 开启中断接收，每次收 1 字节，收到后触发 HAL_UART_RxCpltCallback */
   HAL_UART_Receive_IT(&huart1, &UART_RX_BUF[0], 1);
-  /* USER CODE END 2 */ 
+  /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
@@ -103,22 +103,32 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    /* 轮询判断接收是否完成（bit15 == 1） */
     if (UART_RX_STA & 0x8000)
     {
-      uint16_t len = UART_RX_STA & 0x3FFF;    /* 实际收到的字节数 */
+      uint16_t len = UART_RX_STA & 0x3FFF;
+      UART_RX_BUF[len] = '\0';
 
-      /* 等待上次发送完成（gState == HAL_UART_STATE_READY） */
-      while (huart1.gState != HAL_UART_STATE_READY);
-
-      /* 把收到的数据回显到串口 */
+      HAL_UART_Transmit(&huart1, (uint8_t *)"[RX]: ", 6, 0xFFFF);
       HAL_UART_Transmit(&huart1, UART_RX_BUF, len, 0xFFFF);
+      HAL_UART_Transmit(&huart1, (uint8_t *)"\r\n", 2, 0xFFFF);
 
-      /* 清除接收状态，准备下一次接收 */
+      if (strcmp((char *)UART_RX_BUF, "open") == 0)
+      {
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
+        HAL_UART_Transmit(&huart1, (uint8_t *)"LED ON\r\n", 7, 0xFFFF);
+      }
+      else if (strcmp((char *)UART_RX_BUF, "close") == 0)
+      {
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
+        HAL_UART_Transmit(&huart1, (uint8_t *)"LED OFF\r\n", 8, 0xFFFF);
+      }
+      else
+      {
+        HAL_UART_Transmit(&huart1, (uint8_t *)"Unknown\r\n", 9, 0xFFFF);
+      }
+
       memset(UART_RX_BUF, 0, UART_RX_BUF_LEN);
       UART_RX_STA = 0;
-
-      /* 重新开启中断接收 */
       HAL_UART_Receive_IT(&huart1, &UART_RX_BUF[0], 1);
     }
   }
@@ -171,24 +181,32 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
   if (huart->Instance == USART1)
   {
-    uint16_t idx = UART_RX_STA & 0x3FFF;           /* 当前已存位置 */
+    uint16_t idx = UART_RX_STA & 0x3FFF;
 
-    /* 收到换行符 \n，标记接收完成 */
-    if (UART_RX_BUF[idx] == '\n')
+    /* \r 或 \n → 命令结束 */
+    if ((UART_RX_BUF[idx] == '\r') || (UART_RX_BUF[idx] == '\n'))
     {
-      UART_RX_STA |= 0x8000;                        /* bit15 置 1，通知 main 循环 */
+      if (idx > 0)
+      {
+        /* 交给主循环处理；处理完成前不要覆盖接收缓冲区。 */
+        UART_RX_STA = idx | 0x8000;
+      }
+      else
+      {
+        /* 忽略空行，以及 CRLF 中剩余的 LF。 */
+        UART_RX_STA = 0;
+        HAL_UART_Receive_IT(&huart1, &UART_RX_BUF[0], 1);
+      }
       return;
     }
 
-    /* 不是换行符：检查是否越界 */
     idx++;
     if (idx >= UART_RX_BUF_LEN - 1)
     {
-      UART_RX_STA |= 0x8000;                        /* 越界也标记完成，防止溢出 */
+      UART_RX_STA |= 0x8000;
       return;
     }
 
-    /* 正常接收：更新索引，继续收下一个字节 */
     UART_RX_STA = idx;
     HAL_UART_Receive_IT(&huart1, &UART_RX_BUF[idx], 1);
   }
