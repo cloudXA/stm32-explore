@@ -88,6 +88,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART1_UART_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   HAL_UART_Transmit(&huart1, (uint8_t *)"STM32 UART2 Ready\r\n",
                     strlen("STM32 UART2 Ready\r\n"), 0xFFFF);
@@ -203,8 +204,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     idx++;
 
     /*
-     * 手机 BLE 工具通常不会把输入框中的 "\\n" 转成真正的换行符。
-     * 本实验只有两个固定命令，因此收到完整命令后直接交给主循环处理。
+     * 手机 BLE 工具通常�?会把输入框中的 "\\n" 转�?真正的�?�行符。
+     * 本实验�?�有两个固定命令，因此收到完整命令�?�直接交给主循环处�?�。
      */
     if (((idx == 4U) && (memcmp(UART_RX_BUF, "open", 4U) == 0)) ||
         ((idx == 5U) && (memcmp(UART_RX_BUF, "close", 5U) == 0)))
