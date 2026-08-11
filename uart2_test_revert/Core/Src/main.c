@@ -2,7 +2,7 @@
 /**
   ******************************************************************************
   * @file           : main.c
-  * @brief          : Main program body
+  * @brief          : ESP8266 TCP server example
   ******************************************************************************
   * @attention
   *
@@ -23,6 +23,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdio.h>
 #include <string.h>
 /* USER CODE END Includes */
 
@@ -33,33 +34,37 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define UART_RX_BUF_LEN 64
-#define UART2_FORWARD_BUF_LEN 128
-
-#define SIZE 12
+#define UART_RX_BUF_LEN          128U
+#define UART2_FORWARD_BUF_LEN    256U
+#define ESP_INVALID_LINK_ID      0xFFU
+#define ESP_MAX_LINK_ID          4U
+#define TCP_SERVER_PORT          8880U
 
 /*
- * ESP8266 AT 指令区：USART1 是 STM32 与 ESP8266 之间的通道。
- * 进入透传模式前，STM32 用 AT 指令让 ESP8266 加入 Wi-Fi、连接 TCP Server。
+ * USART1 connects the STM32 to the ESP8266.
+ * The ESP8266 remains a Wi-Fi station, joins the existing access point, and
+ * listens as a TCP server. The PC connects to the ESP8266 station IP:8880.
  */
-char buffer[SIZE];
-char LJWL[]    = "AT+CWJAP=\"mi\",\"12345678\"\r\n";   //入网指令
-// char LJFWQ[]   = "AT+CIPSTART=\"TCP\",\"192.168.1.10\",8880\r\n"; //连接服务器指令
-char TCMS[]         = "AT+CIPMODE=1\r\n";                              //透传指令
-char SJCS[]         = "AT+CIPSEND\r\n";                                //数据传输开始指令
-char CJMK[]        = "AT+RST\r\n";                                    //重启模块指令
-volatile uint8_t WIFI_GOT_IP_Flag = 0; /* 是否收到WIFI GOT IP, WIFI GOT IP返回值的标志位 */
-volatile uint8_t WIFI_GOT_OK_Flag = 0; /* 是否收到OK, OK返回值的标志位 */
-
-/* 中断收到 ESP8266 的关键回复后设置这些标志，主流程据此继续执行。 */
-volatile uint8_t ESP_SEND_READY_Flag = 0;       /* 收到 '>'，可以开始发送数据 */
-volatile uint8_t ESP_TRANSPARENT_MODE_Flag = 0;
-/* TCP Server 在电脑上：IP 是电脑 Wi-Fi 地址，8880 是服务端监听端口。 */
-static const char TCP_SERVER_COMMAND[] =
-    "AT+CIPSTART=\"TCP\",\"10.154.61.205\",8880\r\n";
-/* 查询 ESP8266 从 Wi-Fi 获取的局域网 IP，主要用于排查网络。 */
+static const char WIFI_JOIN_COMMAND[] =
+    "AT+CWJAP=\"mi\",\"12345678\"\r\n";
+static const char ESP_RESET_COMMAND[] = "AT+RST\r\n";
+static const char ESP_STATION_MODE_COMMAND[] = "AT+CWMODE=1\r\n";
+static const char ESP_NORMAL_MODE_COMMAND[] = "AT+CIPMODE=0\r\n";
+static const char ESP_MULTI_CONNECTION_COMMAND[] = "AT+CIPMUX=1\r\n";
+static const char ESP_SERVER_START_COMMAND[] = "AT+CIPSERVER=1,8880\r\n";
 static const char ESP_IP_QUERY_COMMAND[] = "AT+CIFSR\r\n";
 
+/* AT command/result flags written by the USART1 receive interrupt. */
+volatile uint8_t WIFI_GOT_IP_Flag = 0U;
+volatile uint8_t ESP_AT_OK_Flag = 0U;
+volatile uint8_t ESP_AT_ERROR_Flag = 0U;
+volatile uint8_t ESP_SEND_PROMPT_Flag = 0U;
+volatile uint8_t ESP_SEND_OK_Flag = 0U;
+volatile uint8_t ESP_SERVER_READY_Flag = 0U;
+
+/* Current TCP client. ESP8266 server mode supports link IDs 0..4. */
+volatile uint8_t TCP_CLIENT_CONNECTED = 0U;
+volatile uint8_t TCP_CLIENT_ID = ESP_INVALID_LINK_ID;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -70,31 +75,44 @@ static const char ESP_IP_QUERY_COMMAND[] = "AT+CIFSR\r\n";
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-uint8_t   UART_RX_BUF[UART_RX_BUF_LEN]; /* 接收缓冲区 */
-volatile uint16_t UART_RX_STA = 0;      /* bit15=完�?, bit14-0=已收字节数 */
+uint8_t ESP_RX_BYTE = 0U;
+uint8_t UART_RX_BUF[UART_RX_BUF_LEN];
+volatile uint16_t UART_RX_STA = 0U;
 
-/*
- * USART1 -> USART2 转发环形缓冲区：
- * 接收中断只把网络数据快速放进缓冲区，主循环再经 CH340 发给串口助手，
- * 避免在中断中长时间发送而丢失 ESP8266 后续数据。
- */
+/* USART1 -> USART2 forwarding ring buffer. */
 uint8_t UART2_FORWARD_BUF[UART2_FORWARD_BUF_LEN];
-volatile uint16_t UART2_FORWARD_HEAD = 0;
-volatile uint16_t UART2_FORWARD_TAIL = 0;
-volatile uint8_t UART2_FORWARD_OVERRUN = 0;
-volatile uint8_t LED_COMMAND_PENDING = 0; /* 0=无命令，1=亮灯，2=灭灯 */
-uint8_t LED_COMMAND_MATCH = 0;            /* 当前已匹配 led1/led0 的字符数 */
+volatile uint16_t UART2_FORWARD_HEAD = 0U;
+volatile uint16_t UART2_FORWARD_TAIL = 0U;
+volatile uint8_t UART2_FORWARD_OVERRUN = 0U;
 
+/* +IPD payload state. */
+volatile uint16_t ESP_IPD_REMAINING = 0U;
+volatile uint8_t ESP_IPD_LINK_ID = ESP_INVALID_LINK_ID;
+
+/* LED command state. 1=LED on, 2=LED off. */
+volatile uint8_t LED_COMMAND_PENDING = 0U;
+volatile uint8_t LED_COMMAND_LINK_ID = ESP_INVALID_LINK_ID;
+uint8_t LED_COMMAND_MATCH = 0U;
+uint8_t LED_PARSE_LINK_ID = ESP_INVALID_LINK_ID;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 static void UART2_DebugPrint(const char *message);
+static void UART2_QueueData(const uint8_t *data, uint16_t length);
 static void UART2_ForwardPending(void);
-static void LED_ParseByte(uint8_t byte);
+static void LED_ParseByte(uint8_t link_id, uint8_t byte);
 static void LED_ProcessPending(void);
-
+static uint8_t ESP_SendCommandWaitOK(const char *command, uint32_t timeout_ms);
+static uint8_t ESP_SendToClient(uint8_t link_id,
+                                const uint8_t *data,
+                                uint16_t length);
+static uint8_t ESP_ParseIPDHeader(const uint8_t *header,
+                                  uint16_t length,
+                                  uint8_t *link_id,
+                                  uint16_t *payload_length);
+static void ESP_ProcessLine(char *line);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -102,19 +120,36 @@ static void LED_ProcessPending(void);
 
 static void UART2_DebugPrint(const char *message)
 {
-  /* USART2 连接 CH340，本函数专门向电脑串口助手输出调试信息。 */
   if (message == NULL)
   {
     return;
   }
 
   (void)HAL_UART_Transmit(&huart2, (uint8_t *)message,
-                          (uint16_t)strlen(message), 1000);
+                          (uint16_t)strlen(message), 1000U);
+}
+
+static void UART2_QueueData(const uint8_t *data, uint16_t length)
+{
+  uint16_t i;
+
+  for (i = 0U; i < length; i++)
+  {
+    uint16_t next = (UART2_FORWARD_HEAD + 1U) % UART2_FORWARD_BUF_LEN;
+
+    if (next == UART2_FORWARD_TAIL)
+    {
+      UART2_FORWARD_OVERRUN = 1U;
+      break;
+    }
+
+    UART2_FORWARD_BUF[UART2_FORWARD_HEAD] = data[i];
+    UART2_FORWARD_HEAD = next;
+  }
 }
 
 static void UART2_ForwardPending(void)
 {
-  /* 将环形缓冲区中尚未转发的数据分段发送到 USART2。 */
   while (UART2_FORWARD_TAIL != UART2_FORWARD_HEAD)
   {
     uint16_t head = UART2_FORWARD_HEAD;
@@ -131,7 +166,7 @@ static void UART2_ForwardPending(void)
 
     if (HAL_UART_Transmit(&huart2,
                           &UART2_FORWARD_BUF[UART2_FORWARD_TAIL],
-                          length, 1000) != HAL_OK)
+                          length, 1000U) != HAL_OK)
     {
       break;
     }
@@ -141,41 +176,46 @@ static void UART2_ForwardPending(void)
   }
 }
 
-static void LED_ParseByte(uint8_t byte)
+static void LED_ParseByte(uint8_t link_id, uint8_t byte)
 {
-  /* 兼容 LED1、Led1 等写法，先统一转换为小写。 */
+  /* Do not combine partial commands from two different TCP clients. */
+  if (LED_PARSE_LINK_ID != link_id)
+  {
+    LED_PARSE_LINK_ID = link_id;
+    LED_COMMAND_MATCH = 0U;
+  }
+
   if ((byte >= 'A') && (byte <= 'Z'))
   {
     byte = (uint8_t)(byte + ('a' - 'A'));
   }
 
-  /*
-   * 逐字节状态机：依次寻找 l -> e -> d -> 1/0。
-   * TCP 是字节流，一条命令可能分多次到达，所以不能假设一次接收就是 led1。
-   */
+  /* Streaming matcher for led1 / led0; commands may span TCP packets. */
   switch (LED_COMMAND_MATCH)
   {
-    case 0:
+    case 0U:
       LED_COMMAND_MATCH = (byte == 'l') ? 1U : 0U;
       break;
 
-    case 1:
+    case 1U:
       LED_COMMAND_MATCH = (byte == 'e') ? 2U :
                           ((byte == 'l') ? 1U : 0U);
       break;
 
-    case 2:
+    case 2U:
       LED_COMMAND_MATCH = (byte == 'd') ? 3U :
                           ((byte == 'l') ? 1U : 0U);
       break;
 
-    case 3:
+    case 3U:
       if (byte == '1')
       {
+        LED_COMMAND_LINK_ID = link_id;
         LED_COMMAND_PENDING = 1U;
       }
       else if (byte == '0')
       {
+        LED_COMMAND_LINK_ID = link_id;
         LED_COMMAND_PENDING = 2U;
       }
       LED_COMMAND_MATCH = (byte == 'l') ? 1U : 0U;
@@ -187,29 +227,243 @@ static void LED_ParseByte(uint8_t byte)
   }
 }
 
+static uint8_t ESP_SendCommandWaitOK(const char *command, uint32_t timeout_ms)
+{
+  uint32_t start_tick;
+
+  ESP_AT_OK_Flag = 0U;
+  ESP_AT_ERROR_Flag = 0U;
+
+  if (HAL_UART_Transmit(&huart1, (uint8_t *)command,
+                        (uint16_t)strlen(command), 1000U) != HAL_OK)
+  {
+    return 0U;
+  }
+
+  start_tick = HAL_GetTick();
+  while ((!ESP_AT_OK_Flag) && (!ESP_AT_ERROR_Flag) &&
+         ((HAL_GetTick() - start_tick) < timeout_ms))
+  {
+    UART2_ForwardPending();
+    HAL_Delay(1U);
+  }
+
+  UART2_ForwardPending();
+  return ESP_AT_OK_Flag ? 1U : 0U;
+}
+
+static uint8_t ESP_SendToClient(uint8_t link_id,
+                                const uint8_t *data,
+                                uint16_t length)
+{
+  char command[32];
+  int command_length;
+  uint32_t start_tick;
+
+  if ((link_id > ESP_MAX_LINK_ID) || (data == NULL) || (length == 0U))
+  {
+    return 0U;
+  }
+
+  command_length = snprintf(command, sizeof(command),
+                            "AT+CIPSEND=%u,%u\r\n",
+                            (unsigned int)link_id,
+                            (unsigned int)length);
+  if ((command_length <= 0) ||
+      ((uint32_t)command_length >= (uint32_t)sizeof(command)))
+  {
+    return 0U;
+  }
+
+  ESP_SEND_PROMPT_Flag = 0U;
+  ESP_SEND_OK_Flag = 0U;
+  ESP_AT_ERROR_Flag = 0U;
+
+  if (HAL_UART_Transmit(&huart1, (uint8_t *)command,
+                        (uint16_t)command_length, 1000U) != HAL_OK)
+  {
+    return 0U;
+  }
+
+  start_tick = HAL_GetTick();
+  while ((!ESP_SEND_PROMPT_Flag) && (!ESP_AT_ERROR_Flag) &&
+         ((HAL_GetTick() - start_tick) < 3000U))
+  {
+    UART2_ForwardPending();
+    HAL_Delay(1U);
+  }
+
+  if ((!ESP_SEND_PROMPT_Flag) || ESP_AT_ERROR_Flag)
+  {
+    return 0U;
+  }
+
+  if (HAL_UART_Transmit(&huart1, (uint8_t *)data, length, 1000U) != HAL_OK)
+  {
+    return 0U;
+  }
+
+  start_tick = HAL_GetTick();
+  while ((!ESP_SEND_OK_Flag) && (!ESP_AT_ERROR_Flag) &&
+         ((HAL_GetTick() - start_tick) < 5000U))
+  {
+    UART2_ForwardPending();
+    HAL_Delay(1U);
+  }
+
+  UART2_ForwardPending();
+  return ESP_SEND_OK_Flag ? 1U : 0U;
+}
+
 static void LED_ProcessPending(void)
 {
   uint8_t command;
+  uint8_t link_id;
+  static const uint8_t LED_ON_REPLY[] = "LED ON\r\n";
+  static const uint8_t LED_OFF_REPLY[] = "LED OFF\r\n";
 
-  /* pending 在接收中断中写入；短暂关中断保证“读取并清零”不可被打断。 */
+  /* Wait until the complete +IPD payload has arrived before transmitting AT. */
+  if ((LED_COMMAND_PENDING == 0U) || (ESP_IPD_REMAINING != 0U))
+  {
+    return;
+  }
+
   __disable_irq();
   command = LED_COMMAND_PENDING;
+  link_id = LED_COMMAND_LINK_ID;
   LED_COMMAND_PENDING = 0U;
   __enable_irq();
 
   if (command == 1U)
   {
-    /* 本开发板 PB8 的 LED 是低电平点亮。 */
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
     UART2_DebugPrint("\r\n[GPIO] LED ON (PB8=LOW)\r\n");
-    (void)HAL_UART_Transmit(&huart1, (uint8_t *)"LED ON\r\n", 8U, 1000);
+    if (!ESP_SendToClient(link_id, LED_ON_REPLY,
+                          (uint16_t)(sizeof(LED_ON_REPLY) - 1U)))
+    {
+      UART2_DebugPrint("[TCP] LED ON reply failed\r\n");
+    }
   }
   else if (command == 2U)
   {
-    /* PB8 输出高电平时 LED 熄灭。 */
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
     UART2_DebugPrint("\r\n[GPIO] LED OFF (PB8=HIGH)\r\n");
-    (void)HAL_UART_Transmit(&huart1, (uint8_t *)"LED OFF\r\n", 9U, 1000);
+    if (!ESP_SendToClient(link_id, LED_OFF_REPLY,
+                          (uint16_t)(sizeof(LED_OFF_REPLY) - 1U)))
+    {
+      UART2_DebugPrint("[TCP] LED OFF reply failed\r\n");
+    }
+  }
+}
+
+static uint8_t ESP_ParseIPDHeader(const uint8_t *header,
+                                  uint16_t length,
+                                  uint8_t *link_id,
+                                  uint16_t *payload_length)
+{
+  uint16_t pos;
+  uint32_t value;
+
+  /* Expected: +IPD,<link id>,<length>: */
+  if ((header == NULL) || (link_id == NULL) || (payload_length == NULL) ||
+      (length < 9U) || (memcmp(header, "+IPD,", 5U) != 0) ||
+      (header[length - 1U] != ':'))
+  {
+    return 0U;
+  }
+
+  pos = 5U;
+  value = 0U;
+  if ((pos >= length) || (header[pos] < '0') || (header[pos] > '9'))
+  {
+    return 0U;
+  }
+  while ((pos < length) && (header[pos] >= '0') && (header[pos] <= '9'))
+  {
+    value = (value * 10U) + (uint32_t)(header[pos] - '0');
+    pos++;
+  }
+  if ((value > ESP_MAX_LINK_ID) || (pos >= length) || (header[pos] != ','))
+  {
+    return 0U;
+  }
+  *link_id = (uint8_t)value;
+
+  pos++;
+  value = 0U;
+  if ((pos >= length) || (header[pos] < '0') || (header[pos] > '9'))
+  {
+    return 0U;
+  }
+  while ((pos < length) && (header[pos] >= '0') && (header[pos] <= '9'))
+  {
+    value = (value * 10U) + (uint32_t)(header[pos] - '0');
+    if (value > 65535U)
+    {
+      return 0U;
+    }
+    pos++;
+  }
+
+  /* CIPDINFO=1 may append remote IP/port; the payload still starts at ':'. */
+  if ((pos >= length) ||
+      ((header[pos] != ':') && (header[pos] != ',')))
+  {
+    return 0U;
+  }
+
+  *payload_length = (uint16_t)value;
+  return 1U;
+}
+
+static void ESP_ProcessLine(char *line)
+{
+  if ((line == NULL) || (line[0] == '\0'))
+  {
+    return;
+  }
+
+  if (strstr(line, "WIFI GOT IP") != NULL)
+  {
+    WIFI_GOT_IP_Flag = 1U;
+  }
+
+  if (strcmp(line, "OK") == 0)
+  {
+    ESP_AT_OK_Flag = 1U;
+  }
+  else if (strcmp(line, "SEND OK") == 0)
+  {
+    ESP_SEND_OK_Flag = 1U;
+  }
+  else if ((strcmp(line, "ERROR") == 0) ||
+           (strstr(line, "FAIL") != NULL))
+  {
+    ESP_AT_ERROR_Flag = 1U;
+  }
+
+  if ((line[0] >= '0') && (line[0] <= ('0' + ESP_MAX_LINK_ID)))
+  {
+    uint8_t link_id = (uint8_t)(line[0] - '0');
+
+    if (strcmp(&line[1], ",CONNECT") == 0)
+    {
+      TCP_CLIENT_ID = link_id;
+      TCP_CLIENT_CONNECTED = 1U;
+    }
+    else if (strcmp(&line[1], ",CLOSED") == 0)
+    {
+      if (TCP_CLIENT_ID == link_id)
+      {
+        TCP_CLIENT_ID = ESP_INVALID_LINK_ID;
+        TCP_CLIENT_CONNECTED = 0U;
+      }
+      if (LED_PARSE_LINK_ID == link_id)
+      {
+        LED_PARSE_LINK_ID = ESP_INVALID_LINK_ID;
+        LED_COMMAND_MATCH = 0U;
+      }
+    }
   }
 }
 
@@ -222,7 +476,9 @@ static void LED_ProcessPending(void)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+  uint8_t wifi_connected = 0U;
+  uint8_t server_started = 0U;
+  uint32_t heartbeat_tick;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -246,146 +502,94 @@ int main(void)
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-  /*
-   * 两个串口的分工：
-   * USART1 <-> ESP8266：发送 AT 指令，之后承载 TCP 透传数据。
-   * USART2 <-> CH340 <-> 电脑：显示日志，帮助观察程序运行情况。
-   */
-  // uart2 串口是ch340, uart1 串口是8266 wifi模块
-  HAL_Delay(300);
-  UART2_DebugPrint("\r\n=== STM32 UART2 Ready ===\r\n");
+  /* USART1 <-> ESP8266; USART2 <-> CH340 debug serial port. */
+  HAL_Delay(300U);
+  UART2_DebugPrint("\r\n=== ESP8266 TCP Server ===\r\n");
   UART2_DebugPrint("USART2: 115200, 8-N-1, TX=PA2, RX=PA3\r\n");
 
-  // 开启中断接收 ESP8266 的回复
-  /* 每次接收 1 字节；完成后会进入 HAL_UART_RxCpltCallback。 */
-  if (HAL_UART_Receive_IT(&huart1, &UART_RX_BUF[0], 1) != HAL_OK)
+  if (HAL_UART_Receive_IT(&huart1, &ESP_RX_BYTE, 1U) != HAL_OK)
   {
     UART2_DebugPrint("ERROR: USART1 receive interrupt failed\r\n");
   }
 
-  // 1. 发入网指令
-  UART2_DebugPrint("Joining WiFi...\r\n");
-  WIFI_GOT_IP_Flag = 0;
-  /* AT+CWJAP 让 ESP8266 连接指定的 Wi-Fi，与 TCP 连接是两个不同阶段。 */
-  HAL_UART_Transmit(&huart1, (uint8_t *)LJWL, strlen(LJWL), 0xFFFF);
+  /*
+   * Recover if the ESP8266 was left in transparent mode by an earlier run.
+   * Guard time is required on both sides of the +++ escape sequence.
+   */
+  UART2_DebugPrint("Resetting ESP8266...\r\n");
+  HAL_Delay(1100U);
+  (void)HAL_UART_Transmit(&huart1, (uint8_t *)"+++", 3U, 1000U);
+  HAL_Delay(1100U);
+  (void)HAL_UART_Transmit(&huart1, (uint8_t *)"\r\n", 2U, 1000U);
+  HAL_Delay(100U);
 
-  // 等待 WiFi 连接成功（超时 10 秒）
-  uint32_t t = HAL_GetTick();
-  uint32_t status_tick = t;
-  while (!WIFI_GOT_IP_Flag && (HAL_GetTick() - t) < 10000)
+  if (!ESP_SendCommandWaitOK(ESP_RESET_COMMAND, 3000U))
   {
-    if ((HAL_GetTick() - status_tick) >= 1000U)
-    {
-      status_tick = HAL_GetTick();
-      UART2_DebugPrint(".");
-    }
+    UART2_DebugPrint("Warning: ESP8266 reset did not return OK\r\n");
   }
-  UART2_DebugPrint("\r\n");
-  if (WIFI_GOT_IP_Flag)
+  HAL_Delay(2500U);
+  UART2_ForwardPending();
+
+  UART2_DebugPrint("Selecting WiFi station mode...\r\n");
+  if (!ESP_SendCommandWaitOK(ESP_STATION_MODE_COMMAND, 3000U))
   {
-    /* 获得 IP 只说明已经进入局域网，还没有连接电脑上的 TCP Server。 */
-    UART2_DebugPrint("WiFi connected\r\n");
-    UART2_DebugPrint("Reading ESP8266 IP address...\r\n");
-    HAL_UART_Transmit(&huart1, (uint8_t *)ESP_IP_QUERY_COMMAND,
-                      sizeof(ESP_IP_QUERY_COMMAND) - 1U, 0xFFFF);
-    HAL_Delay(1000);
+    UART2_DebugPrint("ERROR: CWMODE failed\r\n");
   }
   else
   {
-    UART2_DebugPrint("WiFi timeout (check ESP8266 baud rate and wiring)\r\n");
-  }
-  WIFI_GOT_IP_Flag = 0;
-  HAL_Delay(1000);
-
-  // 2. 发连接服务器指令
-  UART2_DebugPrint("Connecting TCP server...\r\n");
-  WIFI_GOT_OK_Flag = 0;
-  /* ESP8266 作为 TCP Client，主动连接电脑的 IP:8880。 */
-  HAL_UART_Transmit(&huart1, (uint8_t *)TCP_SERVER_COMMAND,
-                    sizeof(TCP_SERVER_COMMAND) - 1U, 0xFFFF);
-
-  // 等待 TCP 连接成功（超时 10 秒）
-  t = HAL_GetTick();
-  status_tick = t;
-  while (!WIFI_GOT_OK_Flag && (HAL_GetTick() - t) < 10000)
-  {
-    if ((HAL_GetTick() - status_tick) >= 1000U)
+    UART2_DebugPrint("Joining WiFi...\r\n");
+    WIFI_GOT_IP_Flag = 0U;
+    if (ESP_SendCommandWaitOK(WIFI_JOIN_COMMAND, 30000U))
     {
-      status_tick = HAL_GetTick();
-      UART2_DebugPrint(".");
-    }
-  }
-  UART2_DebugPrint("\r\n");
-  uint8_t tcp_connected = 0;
-  if (WIFI_GOT_OK_Flag)
-  {
-    tcp_connected = 1;
-    UART2_DebugPrint("TCP connected\r\n");
-  }
-  else
-  {
-    UART2_DebugPrint("TCP timeout\r\n");
-  }
-  WIFI_GOT_OK_Flag = 0;
-  HAL_Delay(1000);
-
-  // 3. 发透传指令
-  if (tcp_connected)
-  {
-    /*
-     * 透明传输模式下，STM32 不再需要为每包数据发送 AT+CIPSEND。
-     * USART1 写出的普通字节会被 ESP8266 送入 TCP，收到的 TCP 字节也原样回到 USART1。
-     */
-    UART2_DebugPrint("Enabling transparent mode...\r\n");
-    WIFI_GOT_OK_Flag = 0;
-    HAL_UART_Transmit(&huart1, (uint8_t *)TCMS, strlen(TCMS), 0xFFFF);
-
-    t = HAL_GetTick();
-    while (!WIFI_GOT_OK_Flag && (HAL_GetTick() - t) < 3000U)
-    {
-    }
-
-    if (WIFI_GOT_OK_Flag)
-    {
-      ESP_SEND_READY_Flag = 0;
-      ESP_TRANSPARENT_MODE_Flag = 0;
-      UART2_DebugPrint("Waiting for CIPSEND prompt...\r\n");
-
-  // 4. 发数据传输开始指令
-      HAL_UART_Transmit(&huart1, (uint8_t *)SJCS, strlen(SJCS), 0xFFFF);
-
-      t = HAL_GetTick();
-      while (!ESP_SEND_READY_Flag && (HAL_GetTick() - t) < 5000U)
-      {
-      }
-
-      if (ESP_SEND_READY_Flag)
-      {
-        /* 收到 '>' 后正式进入透传；网络助手发来的 led1/led0 可到达解析器。 */
-        UART2_DebugPrint("Transparent receive ready; network data follows raw\r\n");
-      }
-      else
-      {
-        UART2_DebugPrint("CIPSEND prompt timeout\r\n");
-      }
+      wifi_connected = 1U;
+      UART2_DebugPrint("WiFi connected\r\n");
+      UART2_DebugPrint("ESP8266 station IP follows:\r\n");
+      (void)ESP_SendCommandWaitOK(ESP_IP_QUERY_COMMAND, 3000U);
     }
     else
     {
-      UART2_DebugPrint("CIPMODE command failed\r\n");
+      UART2_DebugPrint("ERROR: WiFi join failed or timed out\r\n");
     }
   }
-  else
+
+  if (wifi_connected)
   {
-    UART2_DebugPrint("Transparent mode skipped because TCP is not connected\r\n");
+    UART2_DebugPrint("Selecting normal (non-transparent) mode...\r\n");
+    if (!ESP_SendCommandWaitOK(ESP_NORMAL_MODE_COMMAND, 3000U))
+    {
+      UART2_DebugPrint("ERROR: CIPMODE=0 failed\r\n");
+    }
+    else
+    {
+      UART2_DebugPrint("Enabling multiple connections...\r\n");
+      if (!ESP_SendCommandWaitOK(ESP_MULTI_CONNECTION_COMMAND, 3000U))
+      {
+        UART2_DebugPrint("ERROR: CIPMUX=1 failed\r\n");
+      }
+      else
+      {
+        UART2_DebugPrint("Starting TCP server on port 8880...\r\n");
+        if (ESP_SendCommandWaitOK(ESP_SERVER_START_COMMAND, 3000U))
+        {
+          server_started = 1U;
+          ESP_SERVER_READY_Flag = 1U;
+          UART2_DebugPrint("TCP server ready: connect PC to ESP_IP:8880\r\n");
+          UART2_DebugPrint("Commands: led1 = ON, led0 = OFF\r\n");
+        }
+        else
+        {
+          UART2_DebugPrint("ERROR: TCP server start failed\r\n");
+        }
+      }
+    }
   }
 
-  if (!ESP_TRANSPARENT_MODE_Flag)
+  if (!server_started)
   {
-    UART2_DebugPrint("Not connected; heartbeat starts now\r\n");
+    UART2_DebugPrint("Server is not ready; heartbeat starts now\r\n");
   }
 
-  uint32_t heartbeat_tick = HAL_GetTick();
-
+  heartbeat_tick = HAL_GetTick();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -395,18 +599,24 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    /* 中断负责收字节，主循环负责执行耗时的 GPIO、串口发送等业务。 */
     LED_ProcessPending();
     UART2_ForwardPending();
 
-    if (!ESP_TRANSPARENT_MODE_Flag &&
-        (HAL_GetTick() - heartbeat_tick) >= 1000U)
+    if (UART2_FORWARD_OVERRUN)
     {
-      /* 未进入透传时每秒打印一次，证明 STM32 主循环仍在正常运行。 */
+      __disable_irq();
+      UART2_FORWARD_OVERRUN = 0U;
+      __enable_irq();
+      UART2_DebugPrint("\r\n[UART2] receive forwarding buffer overrun\r\n");
+    }
+
+    if ((!ESP_SERVER_READY_Flag) &&
+        ((HAL_GetTick() - heartbeat_tick) >= 1000U))
+    {
       heartbeat_tick = HAL_GetTick();
       UART2_DebugPrint("[UART2] heartbeat\r\n");
     }
-    HAL_Delay(1);
+    HAL_Delay(1U);
   }
   /* USER CODE END 3 */
 }
@@ -452,104 +662,74 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
-/* 串�?�接收完�?中断回调 */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-  /* 本项目只在这里处理 USART1（ESP8266）的接收完成事件。 */
   if (huart->Instance == USART1)
   {
-    if (ESP_TRANSPARENT_MODE_Flag)
+    uint8_t byte = ESP_RX_BYTE;
+
+    if (ESP_IPD_REMAINING > 0U)
     {
-      /*
-       * 透传阶段：当前字节来自 TCP Server。
-       * 同一个字节同时送给 LED 命令解析器，并写入环形缓冲区供 USART2 显示。
-       */
-      uint16_t next =
-          (UART2_FORWARD_HEAD + 1U) % UART2_FORWARD_BUF_LEN;
-
-      LED_ParseByte(UART_RX_BUF[0]);
-
-      if (next != UART2_FORWARD_TAIL)
-      {
-        UART2_FORWARD_BUF[UART2_FORWARD_HEAD] = UART_RX_BUF[0];
-        UART2_FORWARD_HEAD = next;
-      }
-      else
-      {
-        /* head 的下一格追上 tail，说明缓冲区已满；保留旧数据并记录溢出。 */
-        UART2_FORWARD_OVERRUN = 1;
-      }
-
-      /* 中断接收是一次性的，每处理完 1 字节都必须重新启动下一次接收。 */
-      HAL_UART_Receive_IT(&huart1, &UART_RX_BUF[0], 1);
+      /* Only TCP payload bytes are forwarded and parsed as LED commands. */
+      LED_ParseByte(ESP_IPD_LINK_ID, byte);
+      UART2_QueueData(&byte, 1U);
+      ESP_IPD_REMAINING--;
+      (void)HAL_UART_Receive_IT(&huart1, &ESP_RX_BYTE, 1U);
       return;
     }
 
-    /* 非透传阶段：把 AT 回复按行收集，等待 \r 或 \n。 */
-    uint16_t idx = UART_RX_STA & 0x3FFF;
-
-    if (UART_RX_BUF[idx] == '>')
+    if (byte == '>')
     {
-      /* AT+CIPSEND 返回 '>'，表示 ESP8266 已准备好接收透明传输数据。 */
-      ESP_SEND_READY_Flag = 1;
-      ESP_TRANSPARENT_MODE_Flag = 1;
-      memset(UART_RX_BUF, 0, UART_RX_BUF_LEN);
-      UART_RX_STA = 0;
-      HAL_UART_Receive_IT(&huart1, &UART_RX_BUF[0], 1);
+      ESP_SEND_PROMPT_Flag = 1U;
+      UART_RX_STA = 0U;
+      (void)HAL_UART_Receive_IT(&huart1, &ESP_RX_BYTE, 1U);
       return;
     }
 
-    /* \r 或 \n → 命令结�?� */
-    if ((UART_RX_BUF[idx] == '\r') || (UART_RX_BUF[idx] == '\n'))
+    if ((byte == '\r') || (byte == '\n'))
     {
-      if (idx > 0)
+      uint16_t length = UART_RX_STA;
+
+      if (length > 0U)
       {
-        UART_RX_BUF[idx] = '\0';
-
-        // 转发到串口调试助手查看 ESP8266 回复了什么
-        HAL_UART_Transmit(&huart2, (uint8_t *)"[ESP8266]: ",
-                          strlen("[ESP8266]: "), 0xFFFF);
-        HAL_UART_Transmit(&huart2, UART_RX_BUF, idx, 0xFFFF);
-        HAL_UART_Transmit(&huart2, (uint8_t *)"\r\n", 2, 0xFFFF);
-
-        /* 从完整的一行 AT 回复中提取主流程关心的状态。 */
-        // 查看是否收到WIFI GOT IP
-        if (strstr((char *)UART_RX_BUF, "WIFI GOT IP") != NULL) {
-          WIFI_GOT_IP_Flag = 1;
-        }
-        if(strstr((char *)UART_RX_BUF, "OK") != NULL) {
-          WIFI_GOT_OK_Flag = 1;
-        }
-        memset(UART_RX_BUF, 0, UART_RX_BUF_LEN);
-        UART_RX_STA = 0;
-        HAL_UART_Receive_IT(&huart1, &UART_RX_BUF[0], 1);
+        UART_RX_BUF[length] = '\0';
+        UART2_QueueData((const uint8_t *)"[ESP8266]: ", 11U);
+        UART2_QueueData(UART_RX_BUF, length);
+        UART2_QueueData((const uint8_t *)"\r\n", 2U);
+        ESP_ProcessLine((char *)UART_RX_BUF);
       }
-      else
-      {
-        /* 忽略空行，以�?� CRLF 中剩余的 LF。 */
-        UART_RX_STA = 0;
-        HAL_UART_Receive_IT(&huart1, &UART_RX_BUF[0], 1);
-      }
+
+      UART_RX_STA = 0U;
+      (void)HAL_UART_Receive_IT(&huart1, &ESP_RX_BYTE, 1U);
       return;
     }
 
-    idx++;
-
-    /*
-     * 手机 BLE 工具通常�?会把输入框中的 "\\n" 转�?真正的�?�行符。
-     * 本实验�?�有两个固定命令，因此收到完整命令�?�直接交给主循环处�?�。
-     */
-    if (idx >= UART_RX_BUF_LEN - 1)
+    if (UART_RX_STA < (UART_RX_BUF_LEN - 1U))
     {
-      /* 防止异常或过长的 AT 回复越界写入数组；丢弃本行后重新接收。 */
-      memset(UART_RX_BUF, 0, UART_RX_BUF_LEN);
-      UART_RX_STA = 0;
-      HAL_UART_Receive_IT(&huart1, &UART_RX_BUF[0], 1);
-      return;
+      uint8_t link_id;
+      uint16_t payload_length;
+
+      UART_RX_BUF[UART_RX_STA] = byte;
+      UART_RX_STA++;
+
+      if ((byte == ':') &&
+          ESP_ParseIPDHeader(UART_RX_BUF, UART_RX_STA,
+                             &link_id, &payload_length))
+      {
+        ESP_IPD_LINK_ID = link_id;
+        ESP_IPD_REMAINING = payload_length;
+        TCP_CLIENT_ID = link_id;
+        TCP_CLIENT_CONNECTED = 1U;
+        UART_RX_STA = 0U;
+      }
+    }
+    else
+    {
+      /* Drop an abnormal overlong AT response and start a fresh line. */
+      UART_RX_STA = 0U;
     }
 
-    UART_RX_STA = idx;
-    HAL_UART_Receive_IT(&huart1, &UART_RX_BUF[idx], 1);
+    (void)HAL_UART_Receive_IT(&huart1, &ESP_RX_BYTE, 1U);
   }
 }
 
@@ -562,7 +742,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
   while (1)
   {
@@ -570,7 +749,7 @@ void Error_Handler(void)
   /* USER CODE END Error_Handler_Debug */
 }
 
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
