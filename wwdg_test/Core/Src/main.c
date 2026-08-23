@@ -54,7 +54,16 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+    void HAL_WWDG_EarlyWakeupCallback(WWDG_HandleTypeDef *hwwdg)
+    {
+      /* Prevent unused argument(s) compilation warning */
+      HAL_WWDG_Refresh(hwwdg);
+      HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_9);
 
+      /* NOTE: This function should not be modified, when the callback is needed,
+               the HAL_WWDG_EarlyWakeupCallback could be implemented in the user file
+       */
+    }
 /* USER CODE END 0 */
 
 /**
@@ -85,6 +94,8 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
+  HAL_Delay(300);
   MX_WWDG_Init();
   /* USER CODE BEGIN 2 */
 
@@ -97,6 +108,8 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
+    HAL_Delay(1000);
   }
   /* USER CODE END 3 */
 }
