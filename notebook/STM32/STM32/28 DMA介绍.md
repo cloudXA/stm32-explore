@@ -461,7 +461,7 @@ HAL_UARTEx_ReceiveToIdle_DMA(&huart1,
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart,
                                 uint16_t Size)
 {
-    /* Size表示本次缓冲区中已有多少个有效字节 */
+    /* Normal模式下常表示本次有效长度；Circular模式下要按写入位置计算增量 */
 }
 ```
 
@@ -995,3 +995,80 @@ CPU = 管理者和货物处理人员
 ![alt text](image-34.png)
 ![alt text](image-35.png)
 ![alt text](image-36.png)
+
+## 23. 可复现的内存到内存实验
+
+目标是把16字节源数组复制到目标数组，同时让CPU做别的事。
+
+~~~c
+static const uint8_t dma_src[16] = {
+    0, 1, 2, 3, 4, 5, 6, 7,
+    8, 9, 10, 11, 12, 13, 14, 15
+};
+
+static uint8_t dma_dst[16];
+static volatile uint8_t dma_done;
+~~~
+
+配置要点：
+
+~~~text
+方向：Memory to Memory
+源地址递增：Enable
+目标地址递增：Enable
+源/目标宽度：Byte
+模式：Normal
+长度：16
+完成中断：Enable
+~~~
+
+启动时检查返回值：
+
+~~~c
+if (HAL_DMA_Start_IT(&hdma_memtomem_dma1_channel1,
+                     (uint32_t)dma_src,
+                     (uint32_t)dma_dst,
+                     sizeof(dma_src)) != HAL_OK)
+{
+    Error_Handler();
+}
+~~~
+
+在对应完成回调中只设置 dma_done = 1，主循环再用 memcmp() 验证两个数组。句柄和通道名以CubeMX为当前芯片生成的代码为准，不要照抄其他型号的DMA通道。
+
+## 24. USART DMA接收的推荐步骤
+
+1. 先用中断方式确认USART接线、波特率和字节解析器正确。
+2. 在CubeMX给USART RX添加DMA请求，外设地址不递增、内存地址递增，宽度都选Byte。
+3. 为不定长数据优先尝试 HAL_UARTEx_ReceiveToIdle_DMA()，并确认当前F1 HAL版本确实提供该接口。
+4. 回调中只记录位置/长度并把这一批字节交给原有解析器，不做阻塞打印。
+5. 处理半传输、空闲事件、传输完成、错误以及重新启动。
+6. 连续发送超过一个缓冲区的数据，验证回绕和覆盖策略。
+7. 分别测试拆包、粘包、二进制0字节和缓冲区满。
+
+在Normal模式中，Size通常可看作本次从缓冲区起点收到的有效字节数；在Circular模式中，它更像DMA当前写入位置。连续回调时应根据“上次位置→本次位置”计算新数据区间，不能每次都从 buffer[0] 重复处理到 buffer[Size-1]。
+
+## 25. 发送完成不一定等于线路完全空闲
+
+DMA把最后一个字节写入USART数据寄存器后，USART硬件仍需按波特率把它移出TX引脚。若下一步要关闭收发器方向、切换半双工或断电，应等待UART的Transmission Complete条件，而不能只看DMA控制器是否搬完。HAL的具体回调链应结合当前系列驱动源码确认。
+
+## 26. 一套排错顺序
+
+~~~text
+DMA完全不动
+→ 检查DMA时钟、通道映射、USART DMA请求和启动返回值
+
+只收到一个字节/一批后停止
+→ 检查Normal模式是否重新启动、错误回调是否恢复
+
+数组内容错位
+→ 检查方向、宽度、地址递增和长度单位
+
+数据偶尔丢失
+→ 检查缓冲区覆盖、CPU处理速度、串口ORE和临界区
+
+命令解析错误
+→ 把DMA层与协议层分开，按有效长度逐字节喂给状态机
+~~~
+
+DMA学习的验收标准不是“调用成功”，而是能够解释每一端地址是否递增、每次搬几个字节、何时结束、CPU从哪里知道新数据范围，以及处理不及时会覆盖什么。

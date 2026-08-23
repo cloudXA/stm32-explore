@@ -82,7 +82,7 @@ ESP8266 通过 TCP 发给电脑网络助手
 
 ## 透传模式怎么理解
 
-普通模式下，STM32 发给 ESP8266 的内容会被 ESP8266 当成 AT 指令解析。
+普通传输模式下，UART处于AT命令接口状态。发送业务数据时应先使用带长度的 `AT+CIPSEND`，收到 `>` 后再发送指定长度Payload；不能直接把任意业务字节当成一条完整AT指令。
 
 透传模式打开后：
 
@@ -473,7 +473,7 @@ HAL_UART_Receive_IT(&huart1, &UART_RX_BUF[0], 1);
 TCP只承诺：
 
 - 字节不会无故乱序。
-- 丢失的数据会尽量重传。
+- 在连接仍有效时提供按序、可靠的字节流；若重试后连接失败，应用仍会收到错误/断开，不能理解成数据在任何情况下都一定送达。
 - 它不承诺你发送一次，对方就接收一次。
 
 所以当前代码按字节解析是合理的：
@@ -628,3 +628,74 @@ status?
 ## 一句话总结
 
 CH340 是给人看的串口，ESP8266 是给网络用的串口；AT 指令负责配置连接，TCP 透传负责搬运数据，STM32 主循环负责解释 led1/led0 并控制 GPIO。
+
+## PC的IPv4为什么与Wi-Fi有关
+
+PC和ESP8266连接同一个无线路由器后，会分别得到同一局域网内的IP：
+
+```text
+路由器/AP
+├─ PC Wi-Fi：10.154.61.205
+└─ ESP8266：10.154.61.x
+```
+
+PC上的TCP Server绑定 `10.154.61.205:8880`，含义是“通过这块Wi-Fi网卡的地址监听8880端口”。ESP8266连接这个地址，路由器才能把数据送到PC。这个地址不是永远固定的，DHCP重新分配或换网络后可能改变。
+
+`localhost` / `127.0.0.1` 只在同一台PC内部回环。Python客户端在PC上连接本机服务器可以用它，但ESP8266是另一台网络设备，必须使用ESP可达的PC局域网IP。
+
+## 用Python代替网络助手建立最小TCP Server
+
+```python
+import socket
+
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server.bind(("0.0.0.0", 8880))
+    server.listen(1)
+    print("waiting on TCP 8880...")
+
+    conn, addr = server.accept()
+    with conn:
+        print("connected:", addr)
+        while True:
+            data = conn.recv(1024)
+            if not data:
+                break
+            print("RX:", data)
+            conn.sendall(b"ACK:" + data)
+```
+
+`0.0.0.0` 表示在PC所有本地网卡上监听，不是让ESP连接 `0.0.0.0`。ESP仍要连接PC真实的Wi-Fi IPv4。运行后可先在PC执行端口测试，再检查防火墙入站规则。
+
+## TCP断开后的正确重连结构
+
+USART1接收端识别 `CLOSED`、`WIFI DISCONNECT` 或发送失败后，只设置事件标志；主循环状态机负责恢复：
+
+```text
+CONNECTED
+→ 检测断开事件
+→ 停止业务发送，清除透传/连接状态
+→ 必要时退出透传并恢复AT命令模式
+→ 检查Wi-Fi是否仍连接
+→ 若掉线则重新加入Wi-Fi
+→ 重新AT+CIPSTART
+→ 成功后重新进入透传
+```
+
+每次重连都要有超时、次数限制和退避延时，避免服务器不可达时无限高速刷AT命令。不同ESP-AT固件对透明传输断线后的自动重连行为可能不同，程序仍应根据实际返回和 `AT+CIPSTATUS` 校验状态。
+
+## 透传与消息边界
+
+TCP只提供字节流，因此建议给自己的命令定义边界，例如：
+
+```text
+led1\r\n
+led0\r\n
+status?\r\n
+```
+
+解析器必须同时处理拆分、合并和错误字符。进入透传前收到的 `>` 只是ESP准备接收数据的提示；退出透传的 `+++` 是特殊转义序列，通常还要求前后保护时间，业务协议应避免无意产生符合退出条件的序列。
+
+## `strstr`使用条件
+
+只有缓冲区已明确写入字符串结束符 `\0`，且不会被中断同时修改时，才能安全调用 `strstr()`。更稳妥的做法是中断只写环形缓冲区，主循环按长度解析AT响应；二进制Payload不能依赖C字符串函数。

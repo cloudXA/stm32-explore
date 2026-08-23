@@ -1,7 +1,7 @@
 ![d7786ef20140004eecebbefc652accea.png](../_resources/d7786ef20140004eecebbefc652accea.png)
 ![cd9ed80a1c4fecaeb556c703204f88db.png](../_resources/cd9ed80a1c4fecaeb556c703204f88db.png)
 ![e8355cbff45942f619f44d35b5ee4ec6.png](../_resources/e8355cbff45942f619f44d35b5ee4ec6.png)
-学习rtos recors 用到多线程,方便处理数据
+后续学习RTOS时，可把串口接收、AT解析、网络连接和业务处理拆成任务；当前先用中断加主循环理解完整数据流。
 ### wifi模块
 ![alt text](../_resources/image.png)
 - 目标: 通过wifi模块,实现单片机的上网
@@ -84,5 +84,52 @@ AT+UART=115200,8,1,0,0
 - ![alt text](../_resources/cfa8e0773ca990c99a4c95cac794c241.jpg)
 - ![alt text](../_resources/image-5.png)
 
+## ESP8266在系统中的位置
+
+STM32F103本身没有Wi-Fi射频和TCP/IP协议栈，ESP8266承担联网工作：
+
+```text
+STM32业务代码
+↕ UART字节
+ESP8266的AT固件
+↕ Wi-Fi与TCP/IP
+无线路由器/网络服务器
+```
+
+STM32通过UART发送AT命令配置模块；建立网络连接后，再发送或接收业务数据。AT命令和 `led1` 等业务协议不是同一层。
+
+## 最小手工调试顺序
+
+每条AT命令通常以 `\r\n` 结束，并等待完整响应后再发送下一条：
+
+```text
+AT                  → OK
+AT+GMR              → 查看固件版本和命令集
+AT+CWMODE=1         → STA模式
+AT+CWJAP="ssid","password"
+AT+CIFSR            → 查看本机IP
+```
+
+不同ESP-AT/NONOS-AT固件的命令名、返回文本和保存行为可能不同。先用 `AT+GMR` 确认固件，再查对应版本文档；不要把某个教程的命令无条件复制到所有模块。
+
+## 硬件注意
+
+- ESP8266芯片和GPIO通常使用3.3V逻辑，不能把STM32串口直接接到真正的5V UART信号。
+- Wi-Fi发射会产生较大瞬时电流，供电不足常表现为反复复位、乱码、入网后掉线。电源应留足余量并在模块附近放置去耦电容。
+- TX/RX交叉且必须共地；EN/CH_PD、RST和启动脚要处于正确状态。
+- 模块上电启动日志的波特率可能与AT命令波特率不同，看到一小段乱码不一定表示AT串口参数错误。
+
+## 程序不要靠固定延时猜结果
+
+更可靠的结构是：
+
+```text
+发送一条AT命令
+→ USART中断/DMA持续收字节
+→ 按行或状态机解析 OK/ERROR/WIFI GOT IP/CONNECT/CLOSED
+→ 成功进入下一状态，失败则超时重试或恢复
+```
+
+每个等待都要有超时；接收缓冲区要处理溢出；不能假设一条AT回复会在一次串口回调中完整到达。
 
 
