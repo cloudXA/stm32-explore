@@ -34,6 +34,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define UART_TX_PERIOD_MS 1000U
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -44,6 +45,15 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+/*
+ * DMA directly reads this buffer from SRAM and writes every byte to USART1_DR.
+ * Keep the buffer valid and unchanged until HAL_UART_TxCpltCallback() runs.
+ */
+uint8_t uartTxBuffer[] =
+    "USART1 TX DMA: data moved from SRAM to the serial port.\r\n";
+
+volatile uint8_t uartTxComplete = 1U;
+uint32_t uartLastTxTick = 0U;
 
 /* USER CODE END PV */
 
@@ -89,6 +99,15 @@ int main(void)
   MX_DMA_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+  /* Start the first non-blocking memory-to-USART DMA transfer. */
+  uartTxComplete = 0U;
+  uartLastTxTick = HAL_GetTick();
+  if (HAL_UART_Transmit_DMA(&huart1,
+                            uartTxBuffer,
+                            (uint16_t)(sizeof(uartTxBuffer) - 1U)) != HAL_OK)
+  {
+    Error_Handler();
+  }
 
   /* USER CODE END 2 */
 
@@ -99,6 +118,24 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    /*
+     * The CPU remains available while DMA sends the previous buffer.
+     * Start a new transfer only after the completion callback reports ready.
+     */
+    if ((uartTxComplete != 0U) &&
+        ((HAL_GetTick() - uartLastTxTick) >= UART_TX_PERIOD_MS))
+    {
+      uartTxComplete = 0U;
+      uartLastTxTick = HAL_GetTick();
+
+      if (HAL_UART_Transmit_DMA(&huart1,
+                                uartTxBuffer,
+                                (uint16_t)(sizeof(uartTxBuffer) - 1U)) != HAL_OK)
+      {
+        uartTxComplete = 1U;
+        Error_Handler();
+      }
+    }
   }
   /* USER CODE END 3 */
 }
@@ -143,6 +180,21 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+/**
+  * @brief USART1 DMA transmission complete callback.
+  * @note  In DMA normal mode this callback runs after the USART TC interrupt,
+  *        so USART1_IRQn must be enabled in addition to DMA1_Channel4_IRQn.
+  */
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+{
+  if (huart->Instance == USART1)
+  {
+    /* PB8 starts high; toggle it after every completed DMA transmission. */
+    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_8);
+    uartTxComplete = 1U;
+  }
+}
 
 /* USER CODE END 4 */
 
