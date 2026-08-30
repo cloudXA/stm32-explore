@@ -1,0 +1,27 @@
+--cpu Cortex-M3
+"dma_test1\startup_stm32f103xb.o"
+"dma_test1\main.o"
+"dma_test1\gpio.o"
+"dma_test1\dma.o"
+"dma_test1\usart.o"
+"dma_test1\stm32f1xx_it.o"
+"dma_test1\stm32f1xx_hal_msp.o"
+"dma_test1\stm32f1xx_hal_gpio_ex.o"
+"dma_test1\stm32f1xx_hal_tim.o"
+"dma_test1\stm32f1xx_hal_tim_ex.o"
+"dma_test1\stm32f1xx_hal_uart.o"
+"dma_test1\stm32f1xx_hal.o"
+"dma_test1\stm32f1xx_hal_rcc.o"
+"dma_test1\stm32f1xx_hal_rcc_ex.o"
+"dma_test1\stm32f1xx_hal_gpio.o"
+"dma_test1\stm32f1xx_hal_dma.o"
+"dma_test1\stm32f1xx_hal_cortex.o"
+"dma_test1\stm32f1xx_hal_pwr.o"
+"dma_test1\stm32f1xx_hal_flash.o"
+"dma_test1\stm32f1xx_hal_flash_ex.o"
+"dma_test1\stm32f1xx_hal_exti.o"
+"dma_test1\system_stm32f1xx.o"
+--library_type=microlib --strict --scatter "dma_test1\dma_test1.sct"
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list "dma_test1.map" -o dma_test1\dma_test1.axf
