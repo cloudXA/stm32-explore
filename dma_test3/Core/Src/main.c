@@ -21,6 +21,7 @@
 #include "dma.h"
 #include "usart.h"
 #include "gpio.h"
+#include <stdint.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -38,13 +39,14 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+#define BUFF_SIZE 100
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+uint8_t rcv_Buf[BUFF_SIZE] = {0}; // 接收数据缓存数组
+uint8_t rcvLen = 0;               // 接收一帧数据的长度
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -89,7 +91,8 @@ int main(void)
   MX_DMA_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-
+  __HAL_UART_ENABLE_IT(&huart1, UART_IT_IDLE); // 使能IDLE空闲中断
+  HAL_UART_Receive_DMA(&huart1, rcv_Buf, BUFF_SIZE); // 使能DMA接收中断
   /* USER CODE END 2 */
 
   /* Infinite loop */

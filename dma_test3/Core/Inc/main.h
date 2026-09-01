@@ -21,7 +21,7 @@
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __MAIN_H
 #define __MAIN_H
-
+#define BUFF_SIZE 100
 #ifdef __cplusplus
 extern "C" {
 #endif
