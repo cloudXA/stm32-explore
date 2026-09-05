@@ -235,18 +235,18 @@ void DMA1_Channel5_IRQHandler(void)
 void USART1_IRQHandler(void)
 {
   /* USER CODE BEGIN USART1_IRQn 0 */
-
+    if(__HAL_UART_GET_FLAG(&huart1, UART_FLAG_IDLE) == SET) { // 判断IDEL标志位
+        __HAL_UART_CLEAR_IDLEFLAG(&huart1);  // 清除标志位 5
+        HAL_UART_DMAStop(&huart1); // 停止DMA传输,防止干扰 5
+        uint8_t temp = __HAL_DMA_GET_COUNTER(&hdma_usart1_rx);
+        rcvLen = BUFF_SIZE - temp; // 计算数据长度 6 
+        HAL_UART_Transmit_DMA(&huart1, rcv_Buf, rcvLen); // 发送数据
+        HAL_UART_Receive_DMA(&huart1, rcv_Buf, BUFF_SIZE); // 接收数据
+      };
   /* USER CODE END USART1_IRQn 0 */
   HAL_UART_IRQHandler(&huart1);
   /* USER CODE BEGIN USART1_IRQn 1 */
-  if(__HAL_UART_GET_FLAG(&huart1, UART_IT_IDLE) == SET) { // 判断IDEL标志位
-    __HAL_UART_CLEAR_IDLEFLAG(&huart1);  // 清除标志位 5
-    HAL_UART_DMAStop(&huart1); // 停止DMA传输,防止干扰 5
-    uint8_t temp = __HAL_DMA_GET_COUNTER(&hdma_usart1_rx);
-    rcvLen = BUFF_SIZE - temp; // 计算数据长度 6 
-    HAL_UART_Transmit_DMA(&huart1, rcv_Buf, rcvLen); // 发送数据
-    HAL_UART_Receive_DMA(&huart1, rcv_Buf, BUFF_SIZE); // 接收数据
-  };
+ 
   /* USER CODE END USART1_IRQn 1 */
 }
 
