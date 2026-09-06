@@ -34,3 +34,4 @@
  Enable Analog WatchDog Mode ☐ // 使能模拟看门狗模式 设定的电压超过一个值,触发复位
 - ![alt text](image-111.png) 重写printf 需要打钩
 - ![alt text](image-112.png) 烟雾传感器的电压
+- ![alt text](image-113.png) A0接到3.3v电压测试

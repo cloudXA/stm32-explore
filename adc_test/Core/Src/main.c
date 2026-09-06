@@ -22,9 +22,10 @@
 #include "usart.h"
 #include "gpio.h"
 
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -55,7 +56,11 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+int fputc(int ch, FILE *f) {
+    unsigned char temp[1] = {ch};
+    HAL_UART_Transmit(&huart1, temp,1,0xffff);
+    return ch;
+}
 /* USER CODE END 0 */
 
 /**
@@ -65,7 +70,7 @@ void SystemClock_Config(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+    uint32_t smoke_value = 0;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -97,8 +102,15 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-
+    HAL_ADC_Start(&hadc1); // 启动adc1转换
+    HAL_ADC_PollForConversion(&hadc1,50); // 等待adc转换完成
+    smoke_value = HAL_ADC_GetValue(&hadc1); // 
+    printf("smoke_value is %d\r\n", smoke_value);
+    printf("smoke_value vcc is %f\r\n", smoke_value * 3.3/4096);
+    
     /* USER CODE BEGIN 3 */
+      
+    HAL_Delay(500);
   }
   /* USER CODE END 3 */
 }
