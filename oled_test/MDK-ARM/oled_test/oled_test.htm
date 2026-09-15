@@ -3,11 +3,11 @@
 <title>Static Call Graph - [oled_test\oled_test.axf]</title></head>
 <body><HR>
 <H1>Static Call Graph for image oled_test\oled_test.axf</H1><HR>
-<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 6240002: Last Updated: Tue Sep 15 23:34:07 2026
+<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 6240002: Last Updated: Tue Sep 15 23:42:44 2026
 <BR><P>
-<H3>Maximum Stack Usage =        240 bytes + Unknown(Functions without stacksize, Cycles, Untraceable Function Pointers)</H3><H3>
+<H3>Maximum Stack Usage =        216 bytes + Unknown(Functions without stacksize, Cycles, Untraceable Function Pointers)</H3><H3>
 Call chain for Maximum Stack Depth:</H3>
-__rt_entry_main &rArr; main &rArr; Oled_Clear &rArr; HAL_I2C_Mem_Write &rArr; I2C_RequestMemoryWrite &rArr; I2C_WaitOnMasterAddressFlagUntilTimeout
+__rt_entry_main &rArr; main &rArr; Oled_Init &rArr; HAL_I2C_Mem_Write &rArr; I2C_RequestMemoryWrite &rArr; I2C_WaitOnMasterAddressFlagUntilTimeout
 <P>
 <H3>
 Functions with no stack information
@@ -204,8 +204,8 @@ Global Symbols
 <P><STRONG><a name="[84]"></a>__rt_entry_postsh_1</STRONG> (Thumb, 0 bytes, Stack size unknown bytes, __rtentry2.o(.ARM.Collect$$rtentry$$00000009))
 
 <P><STRONG><a name="[3f]"></a>__rt_entry_main</STRONG> (Thumb, 0 bytes, Stack size unknown bytes, __rtentry2.o(.ARM.Collect$$rtentry$$0000000D))
-<BR><BR>[Stack]<UL><LI>Max Depth = 240 + Unknown Stack Size
-<LI>Call Chain = __rt_entry_main &rArr; main &rArr; Oled_Clear &rArr; HAL_I2C_Mem_Write &rArr; I2C_RequestMemoryWrite &rArr; I2C_WaitOnMasterAddressFlagUntilTimeout
+<BR><BR>[Stack]<UL><LI>Max Depth = 216 + Unknown Stack Size
+<LI>Call Chain = __rt_entry_main &rArr; main &rArr; Oled_Init &rArr; HAL_I2C_Mem_Write &rArr; I2C_RequestMemoryWrite &rArr; I2C_WaitOnMasterAddressFlagUntilTimeout
 </UL>
 <BR>[Calls]<UL><LI><a href="#[41]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;exit
 <LI><a href="#[40]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
@@ -420,119 +420,127 @@ Global Symbols
 <P><STRONG><a name="[7]"></a>DebugMon_Handler</STRONG> (Thumb, 2 bytes, Stack size 0 bytes, stm32f1xx_it.o(.text.DebugMon_Handler))
 <BR>[Address Reference Count : 1]<UL><LI> startup_stm32f103xb.o(RESET)
 </UL>
-<P><STRONG><a name="[5d]"></a>Error_Handler</STRONG> (Thumb, 10 bytes, Stack size 0 bytes, main.o(.text.Error_Handler))
-<BR><BR>[Called By]<UL><LI><a href="#[5c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_I2C1_Init
+<P><STRONG><a name="[5e]"></a>Error_Handler</STRONG> (Thumb, 10 bytes, Stack size 0 bytes, main.o(.text.Error_Handler))
+<BR><BR>[Called By]<UL><LI><a href="#[5d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_I2C1_Init
 </UL>
 
-<P><STRONG><a name="[51]"></a>HAL_GPIO_Init</STRONG> (Thumb, 526 bytes, Stack size 44 bytes, stm32f1xx_hal_gpio.o(.text.HAL_GPIO_Init))
-<BR><BR>[Stack]<UL><LI>Max Depth = 44<LI>Call Chain = HAL_GPIO_Init
+<P><STRONG><a name="[49]"></a>HAL_Delay</STRONG> (Thumb, 40 bytes, Stack size 16 bytes, stm32f1xx_hal.o(.text.HAL_Delay))
+<BR><BR>[Stack]<UL><LI>Max Depth = 16<LI>Call Chain = HAL_Delay
 </UL>
-<BR>[Called By]<UL><LI><a href="#[4a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_I2C_MspInit
-</UL>
-
-<P><STRONG><a name="[4d]"></a>HAL_GetTick</STRONG> (Thumb, 12 bytes, Stack size 0 bytes, stm32f1xx_hal.o(.text.HAL_GetTick))
-<BR><BR>[Called By]<UL><LI><a href="#[50]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;I2C_WaitOnTXEFlagUntilTimeout
-<LI><a href="#[4f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;I2C_WaitOnBTFFlagUntilTimeout
-<LI><a href="#[5b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;I2C_WaitOnMasterAddressFlagUntilTimeout
-<LI><a href="#[5a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;I2C_WaitOnFlagUntilTimeout
-<LI><a href="#[58]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_RCC_ClockConfig
-<LI><a href="#[59]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_RCC_OscConfig
-<LI><a href="#[4c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_I2C_Mem_Write
-</UL>
-
-<P><STRONG><a name="[49]"></a>HAL_I2C_Init</STRONG> (Thumb, 356 bytes, Stack size 24 bytes, stm32f1xx_hal_i2c.o(.text.HAL_I2C_Init))
-<BR><BR>[Stack]<UL><LI>Max Depth = 100<LI>Call Chain = HAL_I2C_Init &rArr; HAL_I2C_MspInit &rArr; HAL_GPIO_Init
-</UL>
-<BR>[Calls]<UL><LI><a href="#[4b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_RCC_GetPCLK1Freq
-<LI><a href="#[4a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_I2C_MspInit
-</UL>
-<BR>[Called By]<UL><LI><a href="#[5c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_I2C1_Init
-</UL>
-
-<P><STRONG><a name="[4c]"></a>HAL_I2C_Mem_Write</STRONG> (Thumb, 348 bytes, Stack size 40 bytes, stm32f1xx_hal_i2c.o(.text.HAL_I2C_Mem_Write))
-<BR><BR>[Stack]<UL><LI>Max Depth = 104<LI>Call Chain = HAL_I2C_Mem_Write &rArr; I2C_RequestMemoryWrite &rArr; I2C_WaitOnMasterAddressFlagUntilTimeout
-</UL>
-<BR>[Calls]<UL><LI><a href="#[4d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_GetTick
-<LI><a href="#[4e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;I2C_RequestMemoryWrite
-<LI><a href="#[50]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;I2C_WaitOnTXEFlagUntilTimeout
-<LI><a href="#[4f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;I2C_WaitOnBTFFlagUntilTimeout
+<BR>[Calls]<UL><LI><a href="#[4a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_GetTick
 </UL>
 <BR>[Called By]<UL><LI><a href="#[40]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
-<LI><a href="#[5e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Oled_Clear
+</UL>
+
+<P><STRONG><a name="[52]"></a>HAL_GPIO_Init</STRONG> (Thumb, 526 bytes, Stack size 44 bytes, stm32f1xx_hal_gpio.o(.text.HAL_GPIO_Init))
+<BR><BR>[Stack]<UL><LI>Max Depth = 44<LI>Call Chain = HAL_GPIO_Init
+</UL>
+<BR>[Called By]<UL><LI><a href="#[4c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_I2C_MspInit
+</UL>
+
+<P><STRONG><a name="[4a]"></a>HAL_GetTick</STRONG> (Thumb, 12 bytes, Stack size 0 bytes, stm32f1xx_hal.o(.text.HAL_GetTick))
+<BR><BR>[Called By]<UL><LI><a href="#[51]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;I2C_WaitOnTXEFlagUntilTimeout
+<LI><a href="#[50]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;I2C_WaitOnBTFFlagUntilTimeout
+<LI><a href="#[5c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;I2C_WaitOnMasterAddressFlagUntilTimeout
+<LI><a href="#[5b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;I2C_WaitOnFlagUntilTimeout
+<LI><a href="#[49]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_Delay
+<LI><a href="#[59]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_RCC_ClockConfig
+<LI><a href="#[5a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_RCC_OscConfig
+<LI><a href="#[4e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_I2C_Mem_Write
+</UL>
+
+<P><STRONG><a name="[4b]"></a>HAL_I2C_Init</STRONG> (Thumb, 356 bytes, Stack size 24 bytes, stm32f1xx_hal_i2c.o(.text.HAL_I2C_Init))
+<BR><BR>[Stack]<UL><LI>Max Depth = 100<LI>Call Chain = HAL_I2C_Init &rArr; HAL_I2C_MspInit &rArr; HAL_GPIO_Init
+</UL>
+<BR>[Calls]<UL><LI><a href="#[4d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_RCC_GetPCLK1Freq
+<LI><a href="#[4c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_I2C_MspInit
+</UL>
+<BR>[Called By]<UL><LI><a href="#[5d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_I2C1_Init
+</UL>
+
+<P><STRONG><a name="[4e]"></a>HAL_I2C_Mem_Write</STRONG> (Thumb, 348 bytes, Stack size 40 bytes, stm32f1xx_hal_i2c.o(.text.HAL_I2C_Mem_Write))
+<BR><BR>[Stack]<UL><LI>Max Depth = 104<LI>Call Chain = HAL_I2C_Mem_Write &rArr; I2C_RequestMemoryWrite &rArr; I2C_WaitOnMasterAddressFlagUntilTimeout
+</UL>
+<BR>[Calls]<UL><LI><a href="#[4a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_GetTick
+<LI><a href="#[4f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;I2C_RequestMemoryWrite
+<LI><a href="#[51]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;I2C_WaitOnTXEFlagUntilTimeout
+<LI><a href="#[50]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;I2C_WaitOnBTFFlagUntilTimeout
+</UL>
+<BR>[Called By]<UL><LI><a href="#[40]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 <LI><a href="#[5f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Oled_Init
 </UL>
 
-<P><STRONG><a name="[4a]"></a>HAL_I2C_MspInit</STRONG> (Thumb, 106 bytes, Stack size 32 bytes, i2c.o(.text.HAL_I2C_MspInit))
+<P><STRONG><a name="[4c]"></a>HAL_I2C_MspInit</STRONG> (Thumb, 106 bytes, Stack size 32 bytes, i2c.o(.text.HAL_I2C_MspInit))
 <BR><BR>[Stack]<UL><LI>Max Depth = 76<LI>Call Chain = HAL_I2C_MspInit &rArr; HAL_GPIO_Init
 </UL>
-<BR>[Calls]<UL><LI><a href="#[51]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_GPIO_Init
+<BR>[Calls]<UL><LI><a href="#[52]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_GPIO_Init
 </UL>
-<BR>[Called By]<UL><LI><a href="#[49]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_I2C_Init
+<BR>[Called By]<UL><LI><a href="#[4b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_I2C_Init
 </UL>
 
 <P><STRONG><a name="[60]"></a>HAL_IncTick</STRONG> (Thumb, 26 bytes, Stack size 0 bytes, stm32f1xx_hal.o(.text.HAL_IncTick))
 <BR><BR>[Called By]<UL><LI><a href="#[9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;SysTick_Handler
 </UL>
 
-<P><STRONG><a name="[52]"></a>HAL_Init</STRONG> (Thumb, 38 bytes, Stack size 8 bytes, stm32f1xx_hal.o(.text.HAL_Init))
+<P><STRONG><a name="[53]"></a>HAL_Init</STRONG> (Thumb, 38 bytes, Stack size 8 bytes, stm32f1xx_hal.o(.text.HAL_Init))
 <BR><BR>[Stack]<UL><LI>Max Depth = 32<LI>Call Chain = HAL_Init &rArr; HAL_InitTick &rArr; HAL_NVIC_SetPriority
 </UL>
-<BR>[Calls]<UL><LI><a href="#[54]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_InitTick
-<LI><a href="#[53]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_NVIC_SetPriorityGrouping
-<LI><a href="#[55]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_MspInit
+<BR>[Calls]<UL><LI><a href="#[55]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_InitTick
+<LI><a href="#[54]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_NVIC_SetPriorityGrouping
+<LI><a href="#[56]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_MspInit
 </UL>
 <BR>[Called By]<UL><LI><a href="#[40]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
 
-<P><STRONG><a name="[54]"></a>HAL_InitTick</STRONG> (Thumb, 72 bytes, Stack size 16 bytes, stm32f1xx_hal.o(.text.HAL_InitTick))
+<P><STRONG><a name="[55]"></a>HAL_InitTick</STRONG> (Thumb, 72 bytes, Stack size 16 bytes, stm32f1xx_hal.o(.text.HAL_InitTick))
 <BR><BR>[Stack]<UL><LI>Max Depth = 24<LI>Call Chain = HAL_InitTick &rArr; HAL_NVIC_SetPriority
 </UL>
-<BR>[Calls]<UL><LI><a href="#[57]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_NVIC_SetPriority
-<LI><a href="#[56]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_SYSTICK_Config
+<BR>[Calls]<UL><LI><a href="#[58]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_NVIC_SetPriority
+<LI><a href="#[57]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_SYSTICK_Config
 </UL>
-<BR>[Called By]<UL><LI><a href="#[58]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_RCC_ClockConfig
-<LI><a href="#[52]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_Init
+<BR>[Called By]<UL><LI><a href="#[59]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_RCC_ClockConfig
+<LI><a href="#[53]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_Init
 </UL>
 
-<P><STRONG><a name="[55]"></a>HAL_MspInit</STRONG> (Thumb, 66 bytes, Stack size 8 bytes, stm32f1xx_hal_msp.o(.text.HAL_MspInit))
+<P><STRONG><a name="[56]"></a>HAL_MspInit</STRONG> (Thumb, 66 bytes, Stack size 8 bytes, stm32f1xx_hal_msp.o(.text.HAL_MspInit))
 <BR><BR>[Stack]<UL><LI>Max Depth = 8<LI>Call Chain = HAL_MspInit
 </UL>
-<BR>[Called By]<UL><LI><a href="#[52]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_Init
+<BR>[Called By]<UL><LI><a href="#[53]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_Init
 </UL>
 
-<P><STRONG><a name="[57]"></a>HAL_NVIC_SetPriority</STRONG> (Thumb, 86 bytes, Stack size 8 bytes, stm32f1xx_hal_cortex.o(.text.HAL_NVIC_SetPriority))
+<P><STRONG><a name="[58]"></a>HAL_NVIC_SetPriority</STRONG> (Thumb, 86 bytes, Stack size 8 bytes, stm32f1xx_hal_cortex.o(.text.HAL_NVIC_SetPriority))
 <BR><BR>[Stack]<UL><LI>Max Depth = 8<LI>Call Chain = HAL_NVIC_SetPriority
 </UL>
-<BR>[Called By]<UL><LI><a href="#[54]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_InitTick
+<BR>[Called By]<UL><LI><a href="#[55]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_InitTick
 </UL>
 
-<P><STRONG><a name="[53]"></a>HAL_NVIC_SetPriorityGrouping</STRONG> (Thumb, 32 bytes, Stack size 0 bytes, stm32f1xx_hal_cortex.o(.text.HAL_NVIC_SetPriorityGrouping))
-<BR><BR>[Called By]<UL><LI><a href="#[52]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_Init
+<P><STRONG><a name="[54]"></a>HAL_NVIC_SetPriorityGrouping</STRONG> (Thumb, 32 bytes, Stack size 0 bytes, stm32f1xx_hal_cortex.o(.text.HAL_NVIC_SetPriorityGrouping))
+<BR><BR>[Called By]<UL><LI><a href="#[53]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_Init
 </UL>
 
-<P><STRONG><a name="[58]"></a>HAL_RCC_ClockConfig</STRONG> (Thumb, 442 bytes, Stack size 32 bytes, stm32f1xx_hal_rcc.o(.text.HAL_RCC_ClockConfig))
+<P><STRONG><a name="[59]"></a>HAL_RCC_ClockConfig</STRONG> (Thumb, 442 bytes, Stack size 32 bytes, stm32f1xx_hal_rcc.o(.text.HAL_RCC_ClockConfig))
 <BR><BR>[Stack]<UL><LI>Max Depth = 56<LI>Call Chain = HAL_RCC_ClockConfig &rArr; HAL_InitTick &rArr; HAL_NVIC_SetPriority
 </UL>
-<BR>[Calls]<UL><LI><a href="#[54]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_InitTick
-<LI><a href="#[4d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_GetTick
+<BR>[Calls]<UL><LI><a href="#[55]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_InitTick
+<LI><a href="#[4a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_GetTick
 </UL>
 <BR>[Called By]<UL><LI><a href="#[40]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
 
-<P><STRONG><a name="[4b]"></a>HAL_RCC_GetPCLK1Freq</STRONG> (Thumb, 38 bytes, Stack size 0 bytes, stm32f1xx_hal_rcc.o(.text.HAL_RCC_GetPCLK1Freq))
-<BR><BR>[Called By]<UL><LI><a href="#[49]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_I2C_Init
+<P><STRONG><a name="[4d]"></a>HAL_RCC_GetPCLK1Freq</STRONG> (Thumb, 38 bytes, Stack size 0 bytes, stm32f1xx_hal_rcc.o(.text.HAL_RCC_GetPCLK1Freq))
+<BR><BR>[Called By]<UL><LI><a href="#[4b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_I2C_Init
 </UL>
 
-<P><STRONG><a name="[59]"></a>HAL_RCC_OscConfig</STRONG> (Thumb, 1024 bytes, Stack size 32 bytes, stm32f1xx_hal_rcc.o(.text.HAL_RCC_OscConfig))
+<P><STRONG><a name="[5a]"></a>HAL_RCC_OscConfig</STRONG> (Thumb, 1024 bytes, Stack size 32 bytes, stm32f1xx_hal_rcc.o(.text.HAL_RCC_OscConfig))
 <BR><BR>[Stack]<UL><LI>Max Depth = 32<LI>Call Chain = HAL_RCC_OscConfig
 </UL>
-<BR>[Calls]<UL><LI><a href="#[4d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_GetTick
+<BR>[Calls]<UL><LI><a href="#[4a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_GetTick
 </UL>
 <BR>[Called By]<UL><LI><a href="#[40]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
 
-<P><STRONG><a name="[56]"></a>HAL_SYSTICK_Config</STRONG> (Thumb, 44 bytes, Stack size 0 bytes, stm32f1xx_hal_cortex.o(.text.HAL_SYSTICK_Config))
-<BR><BR>[Called By]<UL><LI><a href="#[54]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_InitTick
+<P><STRONG><a name="[57]"></a>HAL_SYSTICK_Config</STRONG> (Thumb, 44 bytes, Stack size 0 bytes, stm32f1xx_hal_cortex.o(.text.HAL_SYSTICK_Config))
+<BR><BR>[Called By]<UL><LI><a href="#[55]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_InitTick
 </UL>
 
 <P><STRONG><a name="[2]"></a>HardFault_Handler</STRONG> (Thumb, 2 bytes, Stack size 0 bytes, stm32f1xx_it.o(.text.HardFault_Handler))
@@ -548,11 +556,11 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[40]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
 
-<P><STRONG><a name="[5c]"></a>MX_I2C1_Init</STRONG> (Thumb, 66 bytes, Stack size 8 bytes, i2c.o(.text.MX_I2C1_Init))
+<P><STRONG><a name="[5d]"></a>MX_I2C1_Init</STRONG> (Thumb, 66 bytes, Stack size 8 bytes, i2c.o(.text.MX_I2C1_Init))
 <BR><BR>[Stack]<UL><LI>Max Depth = 108<LI>Call Chain = MX_I2C1_Init &rArr; HAL_I2C_Init &rArr; HAL_I2C_MspInit &rArr; HAL_GPIO_Init
 </UL>
-<BR>[Calls]<UL><LI><a href="#[49]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_I2C_Init
-<LI><a href="#[5d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Error_Handler
+<BR>[Calls]<UL><LI><a href="#[4b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_I2C_Init
+<LI><a href="#[5e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Error_Handler
 </UL>
 <BR>[Called By]<UL><LI><a href="#[40]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
@@ -571,18 +579,10 @@ Global Symbols
 </UL>
 <BR>[Address Reference Count : 1]<UL><LI> startup_stm32f103xb.o(RESET)
 </UL>
-<P><STRONG><a name="[5e]"></a>Oled_Clear</STRONG> (Thumb, 320 bytes, Stack size 64 bytes, main.o(.text.Oled_Clear))
-<BR><BR>[Stack]<UL><LI>Max Depth = 168<LI>Call Chain = Oled_Clear &rArr; HAL_I2C_Mem_Write &rArr; I2C_RequestMemoryWrite &rArr; I2C_WaitOnMasterAddressFlagUntilTimeout
-</UL>
-<BR>[Calls]<UL><LI><a href="#[4c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_I2C_Mem_Write
-</UL>
-<BR>[Called By]<UL><LI><a href="#[40]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
-</UL>
-
 <P><STRONG><a name="[5f]"></a>Oled_Init</STRONG> (Thumb, 674 bytes, Stack size 40 bytes, main.o(.text.Oled_Init))
 <BR><BR>[Stack]<UL><LI>Max Depth = 144<LI>Call Chain = Oled_Init &rArr; HAL_I2C_Mem_Write &rArr; I2C_RequestMemoryWrite &rArr; I2C_WaitOnMasterAddressFlagUntilTimeout
 </UL>
-<BR>[Calls]<UL><LI><a href="#[4c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_I2C_Mem_Write
+<BR>[Calls]<UL><LI><a href="#[4e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_I2C_Mem_Write
 </UL>
 <BR>[Called By]<UL><LI><a href="#[40]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
@@ -608,17 +608,17 @@ Global Symbols
 </UL>
 <BR>[Address Reference Count : 1]<UL><LI> startup_stm32f103xb.o(RESET)
 </UL>
-<P><STRONG><a name="[40]"></a>main</STRONG> (Thumb, 454 bytes, Stack size 72 bytes, main.o(.text.main))
-<BR><BR>[Stack]<UL><LI>Max Depth = 240<LI>Call Chain = main &rArr; Oled_Clear &rArr; HAL_I2C_Mem_Write &rArr; I2C_RequestMemoryWrite &rArr; I2C_WaitOnMasterAddressFlagUntilTimeout
+<P><STRONG><a name="[40]"></a>main</STRONG> (Thumb, 374 bytes, Stack size 72 bytes, main.o(.text.main))
+<BR><BR>[Stack]<UL><LI>Max Depth = 216<LI>Call Chain = main &rArr; Oled_Init &rArr; HAL_I2C_Mem_Write &rArr; I2C_RequestMemoryWrite &rArr; I2C_WaitOnMasterAddressFlagUntilTimeout
 </UL>
-<BR>[Calls]<UL><LI><a href="#[5c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_I2C1_Init
+<BR>[Calls]<UL><LI><a href="#[49]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_Delay
+<LI><a href="#[5d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_I2C1_Init
 <LI><a href="#[61]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MX_GPIO_Init
-<LI><a href="#[58]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_RCC_ClockConfig
-<LI><a href="#[59]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_RCC_OscConfig
-<LI><a href="#[52]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_Init
-<LI><a href="#[5e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Oled_Clear
+<LI><a href="#[59]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_RCC_ClockConfig
+<LI><a href="#[5a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_RCC_OscConfig
+<LI><a href="#[53]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_Init
 <LI><a href="#[5f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Oled_Init
-<LI><a href="#[4c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_I2C_Mem_Write
+<LI><a href="#[4e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_I2C_Mem_Write
 </UL>
 <BR>[Called By]<UL><LI><a href="#[3f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__rt_entry_main
 </UL>
@@ -626,47 +626,47 @@ Global Symbols
 <H3>
 Local Symbols
 </H3>
-<P><STRONG><a name="[5a]"></a>I2C_WaitOnFlagUntilTimeout</STRONG> (Thumb, 458 bytes, Stack size 24 bytes, stm32f1xx_hal_i2c.o(.text.I2C_WaitOnFlagUntilTimeout))
+<P><STRONG><a name="[5b]"></a>I2C_WaitOnFlagUntilTimeout</STRONG> (Thumb, 458 bytes, Stack size 24 bytes, stm32f1xx_hal_i2c.o(.text.I2C_WaitOnFlagUntilTimeout))
 <BR><BR>[Stack]<UL><LI>Max Depth = 24<LI>Call Chain = I2C_WaitOnFlagUntilTimeout
 </UL>
-<BR>[Calls]<UL><LI><a href="#[4d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_GetTick
+<BR>[Calls]<UL><LI><a href="#[4a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_GetTick
 </UL>
-<BR>[Called By]<UL><LI><a href="#[4e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;I2C_RequestMemoryWrite
+<BR>[Called By]<UL><LI><a href="#[4f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;I2C_RequestMemoryWrite
 </UL>
 
-<P><STRONG><a name="[5b]"></a>I2C_WaitOnMasterAddressFlagUntilTimeout</STRONG> (Thumb, 214 bytes, Stack size 24 bytes, stm32f1xx_hal_i2c.o(.text.I2C_WaitOnMasterAddressFlagUntilTimeout))
+<P><STRONG><a name="[5c]"></a>I2C_WaitOnMasterAddressFlagUntilTimeout</STRONG> (Thumb, 214 bytes, Stack size 24 bytes, stm32f1xx_hal_i2c.o(.text.I2C_WaitOnMasterAddressFlagUntilTimeout))
 <BR><BR>[Stack]<UL><LI>Max Depth = 24<LI>Call Chain = I2C_WaitOnMasterAddressFlagUntilTimeout
 </UL>
-<BR>[Calls]<UL><LI><a href="#[4d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_GetTick
+<BR>[Calls]<UL><LI><a href="#[4a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_GetTick
 </UL>
-<BR>[Called By]<UL><LI><a href="#[4e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;I2C_RequestMemoryWrite
+<BR>[Called By]<UL><LI><a href="#[4f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;I2C_RequestMemoryWrite
 </UL>
 
-<P><STRONG><a name="[4f]"></a>I2C_WaitOnBTFFlagUntilTimeout</STRONG> (Thumb, 186 bytes, Stack size 16 bytes, stm32f1xx_hal_i2c.o(.text.I2C_WaitOnBTFFlagUntilTimeout))
+<P><STRONG><a name="[50]"></a>I2C_WaitOnBTFFlagUntilTimeout</STRONG> (Thumb, 186 bytes, Stack size 16 bytes, stm32f1xx_hal_i2c.o(.text.I2C_WaitOnBTFFlagUntilTimeout))
 <BR><BR>[Stack]<UL><LI>Max Depth = 16<LI>Call Chain = I2C_WaitOnBTFFlagUntilTimeout
 </UL>
-<BR>[Calls]<UL><LI><a href="#[4d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_GetTick
+<BR>[Calls]<UL><LI><a href="#[4a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_GetTick
 </UL>
-<BR>[Called By]<UL><LI><a href="#[4c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_I2C_Mem_Write
+<BR>[Called By]<UL><LI><a href="#[4e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_I2C_Mem_Write
 </UL>
 
-<P><STRONG><a name="[50]"></a>I2C_WaitOnTXEFlagUntilTimeout</STRONG> (Thumb, 186 bytes, Stack size 16 bytes, stm32f1xx_hal_i2c.o(.text.I2C_WaitOnTXEFlagUntilTimeout))
+<P><STRONG><a name="[51]"></a>I2C_WaitOnTXEFlagUntilTimeout</STRONG> (Thumb, 186 bytes, Stack size 16 bytes, stm32f1xx_hal_i2c.o(.text.I2C_WaitOnTXEFlagUntilTimeout))
 <BR><BR>[Stack]<UL><LI>Max Depth = 16<LI>Call Chain = I2C_WaitOnTXEFlagUntilTimeout
 </UL>
-<BR>[Calls]<UL><LI><a href="#[4d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_GetTick
+<BR>[Calls]<UL><LI><a href="#[4a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_GetTick
 </UL>
-<BR>[Called By]<UL><LI><a href="#[4e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;I2C_RequestMemoryWrite
-<LI><a href="#[4c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_I2C_Mem_Write
+<BR>[Called By]<UL><LI><a href="#[4f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;I2C_RequestMemoryWrite
+<LI><a href="#[4e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_I2C_Mem_Write
 </UL>
 
-<P><STRONG><a name="[4e]"></a>I2C_RequestMemoryWrite</STRONG> (Thumb, 200 bytes, Stack size 40 bytes, stm32f1xx_hal_i2c.o(.text.I2C_RequestMemoryWrite))
+<P><STRONG><a name="[4f]"></a>I2C_RequestMemoryWrite</STRONG> (Thumb, 200 bytes, Stack size 40 bytes, stm32f1xx_hal_i2c.o(.text.I2C_RequestMemoryWrite))
 <BR><BR>[Stack]<UL><LI>Max Depth = 64<LI>Call Chain = I2C_RequestMemoryWrite &rArr; I2C_WaitOnMasterAddressFlagUntilTimeout
 </UL>
-<BR>[Calls]<UL><LI><a href="#[50]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;I2C_WaitOnTXEFlagUntilTimeout
-<LI><a href="#[5b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;I2C_WaitOnMasterAddressFlagUntilTimeout
-<LI><a href="#[5a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;I2C_WaitOnFlagUntilTimeout
+<BR>[Calls]<UL><LI><a href="#[51]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;I2C_WaitOnTXEFlagUntilTimeout
+<LI><a href="#[5c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;I2C_WaitOnMasterAddressFlagUntilTimeout
+<LI><a href="#[5b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;I2C_WaitOnFlagUntilTimeout
 </UL>
-<BR>[Called By]<UL><LI><a href="#[4c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_I2C_Mem_Write
+<BR>[Called By]<UL><LI><a href="#[4e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_I2C_Mem_Write
 </UL>
 <P>
 <H3>

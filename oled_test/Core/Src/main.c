@@ -20,6 +20,7 @@
 #include "main.h"
 #include "i2c.h"
 #include "gpio.h"
+#include "oled_picture.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -163,28 +164,9 @@ void SystemClock_Config(void);
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 
-  int a = 10;
-  //1. OLED初始化
-  Oled_Init();
-  Oled_Clear();
-  //2. 选择一个位置
-  //2.1 确认页寻址模式
-  Oled_Write_Cmd(0x20);
-  Oled_Write_Cmd(0x02);
-  //2.2 选择PAGE0    1011 0000
-  //                 0xB0
-  Oled_Write_Cmd(0xB0);
-  //3. 显示一个点
-  Oled_Write_Data(0x08);
-  Oled_Write_Data(0x08);
-  Oled_Write_Data(0x08);
-  Oled_Write_Data(0x08);
-  Oled_Write_Data(0x08);
-  Oled_Write_Data(0x08);
-  Oled_Write_Data(0x08);
-  Oled_Write_Data(0x08);
-  Oled_Write_Data(0x08);
-  Oled_Write_Data(0x08);
+HAL_Delay(100);
+Oled_Init();
+Oled_ShowPicture();
 
   /* USER CODE END 2 */
 
