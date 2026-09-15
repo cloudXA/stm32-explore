@@ -43,6 +43,81 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+void Oled_Write_Cmd(uint8_t dataCmd) {
+    HAL_I2C_Mem_Write(&hi2c1, 0x78, 0x00, I2C_MEMADD_SIZE_8BIT, 
+                      &dataCmd, 1, 0xff); // 0x78是设备地址 1 发送数据的长度,1个字节 
+}
+
+void Oled_Write_Data(uint8_t dataData) {
+    HAL_I2C_Mem_Write(&hi2c1, 0x78, 0x40, I2C_MEMADD_SIZE_8BIT, 
+                      &dataData, 1, 0xff); // 0x78是设备地址 1 发送数据的长度,1个字节 
+}
+
+void Oled_Init(void)
+{
+    Oled_Write_Cmd(0xAE); //--display off
+    Oled_Write_Cmd(0x00); //--set low column address
+    Oled_Write_Cmd(0x10); //--set high column address
+    Oled_Write_Cmd(0x40); //--set start line address
+    Oled_Write_Cmd(0xB0); //--set page address
+    Oled_Write_Cmd(0x81); // contract control
+    Oled_Write_Cmd(0xFF); //--128
+    Oled_Write_Cmd(0xA1); //set segment remap
+    Oled_Write_Cmd(0xA6); //--normal / reverse
+    Oled_Write_Cmd(0xA8); //--set multiplex ratio(1 to 64)
+    Oled_Write_Cmd(0x3F); //--1/32 duty
+    Oled_Write_Cmd(0xC8); //Com scan direction
+    Oled_Write_Cmd(0xD3); //-set display offset
+    Oled_Write_Cmd(0x00); //
+
+    Oled_Write_Cmd(0xD5); //set osc division
+    Oled_Write_Cmd(0x80); //
+
+    Oled_Write_Cmd(0xD8); //set area color mode off
+    Oled_Write_Cmd(0x05); //
+
+    Oled_Write_Cmd(0xD9); //Set Pre‑Charge Period
+    Oled_Write_Cmd(0xF1); //
+
+    Oled_Write_Cmd(0xDA); //set com pin configuartion
+    Oled_Write_Cmd(0x12); //
+
+    Oled_Write_Cmd(0xDB); //set Vcomh
+    Oled_Write_Cmd(0x30); //
+
+    Oled_Write_Cmd(0x8D); //set charge pump enable
+    Oled_Write_Cmd(0x14); //
+
+    Oled_Write_Cmd(0xAF); //--turn on oled panel
+}
+
+void Oled_Clear(void)
+{
+    uint8_t page;
+    uint8_t col;
+
+    // 设置为页寻址模式
+    Oled_Write_Cmd(0x20);
+    Oled_Write_Cmd(0x02);
+
+    // 8 页，每页 128 列，全部写 0
+    for (page = 0; page < 8; page++)
+    {
+        Oled_Write_Cmd(0xB0 + page);
+        Oled_Write_Cmd(0x00);  // 列地址低 4 位
+        Oled_Write_Cmd(0x10);  // 列地址高 4 位
+
+        for (col = 0; col < 128; col++)
+        {
+            Oled_Write_Data(0x00);
+        }
+    }
+
+    // 写入位置恢复到第 0 页、第 0 列
+    Oled_Write_Cmd(0xB0);
+    Oled_Write_Cmd(0x00);
+    Oled_Write_Cmd(0x10);
+}
 
 /* USER CODE END PV */
 
@@ -61,7 +136,7 @@ void SystemClock_Config(void);
   * @brief  The application entry point.
   * @retval int
   */
-int main(void)
+  int main(void)
 {
   /* USER CODE BEGIN 1 */
 
@@ -87,6 +162,29 @@ int main(void)
   MX_GPIO_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
+
+  int a = 10;
+  //1. OLED初始化
+  Oled_Init();
+  Oled_Clear();
+  //2. 选择一个位置
+  //2.1 确认页寻址模式
+  Oled_Write_Cmd(0x20);
+  Oled_Write_Cmd(0x02);
+  //2.2 选择PAGE0    1011 0000
+  //                 0xB0
+  Oled_Write_Cmd(0xB0);
+  //3. 显示一个点
+  Oled_Write_Data(0x08);
+  Oled_Write_Data(0x08);
+  Oled_Write_Data(0x08);
+  Oled_Write_Data(0x08);
+  Oled_Write_Data(0x08);
+  Oled_Write_Data(0x08);
+  Oled_Write_Data(0x08);
+  Oled_Write_Data(0x08);
+  Oled_Write_Data(0x08);
+  Oled_Write_Data(0x08);
 
   /* USER CODE END 2 */
 
